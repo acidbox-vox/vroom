@@ -1,0 +1,50 @@
+{
+  "rules": {
+    "rooms": {
+      "$roomId": {
+        "players": {
+          "$sessionId": {
+            ".read":  true,
+            ".write": true,
+            ".validate": "newData.hasChildren(['username','x','y'])",
+            "username":   { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 20" },
+            "avatarIndex":{ ".validate": "newData.isNumber()" },
+            "gender":     { ".validate": "newData.isString()" },
+            "skinIdx":    { ".validate": "newData.isNumber()" },
+            "hairIdx":    { ".validate": "newData.isNumber()" },
+            "shirtIdx":   { ".validate": "newData.isNumber()" },
+            "hairStyle":  { ".validate": "newData.isNumber()" },
+            "hatType":    { ".validate": "newData.isNumber()" },
+            "itemType":   { ".validate": "newData.isNumber()" },
+            "pantsIdx":   { ".validate": "newData.isNumber()" },
+            "x":          { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1280" },
+            "y":          { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 960" },
+            "idle":       { ".validate": "newData.isBoolean()" },
+            "joinedAt":   { ".validate": "newData.isNumber()" },
+            "id":         { ".validate": "newData.isString()" }
+          }
+        },
+        "chat": {
+          ".read":  true,
+          ".write": true,
+          "$msgId": {
+            ".validate": "newData.hasChildren(['username','text','senderId'])",
+            "username":  { ".validate": "newData.isString() && newData.val().length <= 20" },
+            "text":      { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 300" },
+            "senderId":  { ".validate": "newData.isString()" },
+            "timestamp": { ".validate": "newData.isNumber() || newData.val() == null" }
+          }
+        },
+        "typing": {
+          ".read":  true,
+          ".write": true,
+          "$sessionId": {
+            ".validate": "newData.hasChild('username')",
+            "username": { ".validate": "newData.isString()" },
+            "ts":       { ".validate": "newData.isNumber()" }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Firebase Debug Tool</title>
+<style>
+body { font-family: monospace; background:#0d1117; color:#e8ecf4; padding:20px; }
+h2 { color:#4ade80; }
+.ok  { color:#4ade80; }
+.err { color:#ff5555; }
+.warn{ color:#fbbf24; }
+pre  { background:#1c2535; padding:12px; border-radius:8px; white-space:pre-wrap; font-size:13px; }
+button { background:#1e3a5f; border:1px solid #3b82f6; color:#60a5fa;
+         padding:8px 18px; border-radius:6px; cursor:pointer; font-size:14px; margin:4px; }
+button:hover { background:#1a4a7a; }
+#log { max-height:600px; overflow-y:auto; }
+</style>
+</head>
+<body>
+<h2>🔬 Firebase Debug Tool</h2>
+<p style="color:#7a8299">เปิดหน้านี้ใน 2 browser/tab พร้อมกัน แล้วกด Run All Tests</p>
+
+<div style="margin:12px 0">
+  <button onclick="runAll()">▶ Run All Tests</button>
+  <button onclick="clearLog()">🗑 Clear</button>
+</div>
+
+<pre id="log">กด Run All Tests เพื่อเริ่ม...\n</pre>
+
+<script type="module">
+import { initializeApp, getApps } from
+  'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import {
+  getDatabase, ref, set, get, remove, onValue, off, update, serverTimestamp
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+// ← ใส่ config จริงตรงนี้
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyCJaI-ox-DmXU9cdPK_Fv8eXmz2BrBBuD0",
+  authDomain:        "vroom-d693c.firebaseapp.com",
+  databaseURL:       "https://vroom-d693c-default-rtdb.asia-southeast1.firebasedatabase.app/",
+  projectId:         "vroom-d693c",
+  storageBucket:     "vroom-d693c.firebasestorage.app",
+  messagingSenderId: "971748394543",
+  appId:             "1:971748394543:web:36f216e3e4de775bb1e8da",
+};
+
+const SESSION = 'debug-' + crypto.randomUUID().slice(0,8);
+let db;
+
+function log(msg, cls='') {
+  const el = document.getElementById('log');
+  const ts = new Date().toLocaleTimeString('th-TH');
+  el.innerHTML += `<span class="${cls}">[${ts}] ${msg}</span>\n`;
+  el.scrollTop = el.scrollHeight;
+}
+
+async function runAll() {
+  document.getElementById('log').innerHTML = '';
+  log(`Session ID: ${SESSION}`, 'warn');
+
+  // STEP 1: init Firebase
+  log('--- STEP 1: Firebase Init ---');
+  try {
+    const existing = getApps();
+    const app = existing.length > 0 ? existing[0] : initializeApp(FIREBASE_CONFIG);
+    db = getDatabase(app);
+    log('✅ Firebase initialized', 'ok');
+  } catch(e) {
+    log('❌ Firebase init failed: ' + e.message, 'err'); return;
+  }
+
+  // STEP 2: write player record (ตาม rules เดิม)
+  log('--- STEP 2: Write player record ---');
+  const playerRef = ref(db, `rooms/main-room/players/${SESSION}`);
+  const record = {
+    id: SESSION,
+    username: 'debug_' + SESSION.slice(-4),
+    avatarIndex: 0,
+    x: 640, y: 480,
+    idle: false,
+    joinedAt: Date.now(),
+    // new appearance fields
+    gender: 'm', skinIdx: 1, hairIdx: 2, shirtIdx: 3,
+    hairStyle: 0, hatType: 1, itemType: 0, pantsIdx: 2,
+  };
+  log(`Writing: username="${record.username}" avatarIndex=${record.avatarIndex}`);
+  try {
+    await set(playerRef, record);
+    log('✅ set() succeeded', 'ok');
+  } catch(e) {
+    log('❌ set() FAILED: ' + e.code + ' — ' + e.message, 'err');
+    log('   ↳ นี่คือสาเหตุที่ไม่เจอกัน! Rules reject write', 'err');
+    return;
+  }
+
+  // STEP 3: read back own record
+  log('--- STEP 3: Read back own record ---');
+  try {
+    const snap = await get(playerRef);
+    if (snap.exists()) {
+      log('✅ Read back OK: ' + JSON.stringify(snap.val()), 'ok');
+    } else {
+      log('❌ Record not found after write!', 'err');
+    }
+  } catch(e) {
+    log('❌ get() failed: ' + e.message, 'err');
+  }
+
+  // STEP 4: listen to ALL players (real-time)
+  log('--- STEP 4: Listen to all players (10 sec) ---');
+  log('👀 เปิดอีก tab แล้วกด Run All Tests เพื่อดูว่าเห็นกันไหม', 'warn');
+  const playersRef = ref(db, 'rooms/main-room/players');
+  const handler = (snap) => {
+    const data = snap.exists() ? snap.val() : {};
+    const ids = Object.keys(data);
+    log(`📡 onValue fired: ${ids.length} player(s) → [${ids.map(id => data[id]?.username).join(', ')}]`,
+        ids.length > 1 ? 'ok' : 'warn');
+  };
+  onValue(playersRef, handler, e => log('❌ listen error: '+e.message,'err'));
+
+  // STEP 5: emitMove test
+  log('--- STEP 5: emitMove (update x,y) ---');
+  try {
+    await update(playerRef, { x: Math.round(500+Math.random()*200), y: 480 });
+    log('✅ update() (emitMove) succeeded', 'ok');
+  } catch(e) {
+    log('❌ update() failed: ' + e.code + ' — ' + e.message, 'err');
+  }
+
+  // cleanup after 15s
+  setTimeout(async () => {
+    off(playersRef, 'value', handler);
+    await remove(playerRef).catch(()=>{});
+    log('🧹 Cleaned up (15s elapsed)', 'warn');
+  }, 15000);
+}
+
+function clearLog() { document.getElementById('log').innerHTML = ''; }
+
+window.runAll = runAll;
+window.clearLog = clearLog;
+
+log('พร้อมแล้ว กด Run All Tests');
+</script>
+</body>
+</html>

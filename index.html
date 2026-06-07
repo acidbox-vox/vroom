@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Virtual Room</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <!-- Phaser 3 -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+</head>
+<body>
+
+  <!-- ══════════════ LOGIN MODAL ══════════════ -->
+  <div id="loginOverlay" class="overlay active">
+    <div class="modal login-modal">
+      <div class="modal-logo">
+        <span class="logo-icon">🏛️</span>
+        <h1>Virtual Room</h1>
+        <p>Powered by Firebase</p>
+      </div>
+
+      <div class="avatar-section">
+        <label class="section-label">เลือก Avatar</label>
+        <div class="avatar-grid" id="avatarGrid"></div>
+      </div>
+
+      <div class="input-group">
+        <label for="usernameInput">ชื่อผู้ใช้</label>
+        <input type="text" id="usernameInput"
+          placeholder="กรอกชื่อ 3–20 ตัวอักษร"
+          maxlength="20" autocomplete="off" />
+        <span class="input-hint" id="usernameHint"></span>
+      </div>
+
+      <button id="loginBtn" class="btn-primary" disabled>
+        <span id="loginSpinner" class="spinner hidden"></span>
+        เข้าห้อง →
+      </button>
+      <p id="loginError" class="error-msg"></p>
+    </div>
+  </div>
+
+  <!-- ══════════════ MAIN APP ══════════════ -->
+  <div id="app" class="hidden">
+
+    <header id="appHeader">
+      <div class="header-left">
+        <span class="header-logo">🏛️</span>
+        <span class="header-title">Virtual Room</span>
+      </div>
+      <div class="header-center">
+        <span class="status-dot"></span>
+        <span id="onlineCount">0</span>&nbsp;ออนไลน์
+      </div>
+      <div class="header-right">
+        <button id="minimapToggleBtn" class="icon-btn" title="Minimap">🗺️</button>
+        <button id="logoutBtn"        class="icon-btn" title="ออกห้อง">🚪</button>
+      </div>
+    </header>
+
+    <div id="mainLayout">
+
+      <!-- Game -->
+      <div id="gameWrapper">
+        <div id="gameContainer"></div>
+
+        <!-- Minimap -->
+        <div id="minimap" class="hidden">
+          <canvas id="minimapCanvas" width="160" height="120"></canvas>
+          <div id="minimapPlayer"></div>
+        </div>
+
+        <!-- Tooltip -->
+        <div id="tooltip" class="hidden">
+          <div id="tooltipIcon"></div>
+          <div id="tooltipName"></div>
+          <div id="tooltipDesc"></div>
+        </div>
+
+        <!-- Click ripple container -->
+        <div id="clickEffects"></div>
+      </div>
+
+      <!-- Sidebar -->
+      <aside id="sidebar">
+
+        <div class="panel" id="usersPanel">
+          <div class="panel-header">
+            <span>👥 ONLINE USERS</span>
+            <span class="badge" id="userCount">0</span>
+          </div>
+          <ul id="userList"></ul>
+        </div>
+
+        <div class="panel" id="chatPanel">
+          <div class="panel-header">
+            <span>💬 CHAT</span>
+          </div>
+          <div id="chatMessages"></div>
+          <div id="typingIndicator" class="hidden">
+            <span id="typingText"></span>
+          </div>
+          <div id="chatInputArea">
+            <input type="text" id="chatInput"
+              placeholder="พิมพ์ข้อความ..." maxlength="300" />
+            <button id="chatSendBtn">➤</button>
+          </div>
+          <div id="emojiBar">
+            <button class="emoji-btn" data-emoji="😊">😊</button>
+            <button class="emoji-btn" data-emoji="👍">👍</button>
+            <button class="emoji-btn" data-emoji="❤️">❤️</button>
+            <button class="emoji-btn" data-emoji="🎉">🎉</button>
+            <button class="emoji-btn" data-emoji="😂">😂</button>
+            <button class="emoji-btn" data-emoji="🔥">🔥</button>
+          </div>
+        </div>
+
+      </aside>
+    </div>
+  </div>
+
+  <!-- ══════════════ CONTENT MODAL ══════════════ -->
+  <div id="contentOverlay" class="overlay hidden">
+    <div class="modal content-modal">
+      <div class="modal-header">
+        <span id="contentModalTitle"></span>
+        <button id="contentModalClose" class="close-btn">✕</button>
+      </div>
+      <div id="contentModalBody"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════ NOTIFICATIONS ══════════════ -->
+  <div id="notifications"></div>
+
+  <!-- ES Modules -->
+  <script type="module" src="js/game.js"></script>
+
+</body>
+</html>
