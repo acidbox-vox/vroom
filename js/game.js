@@ -233,147 +233,50 @@ function _hitTest(wx, wy) {
 ═══════════════════════════════════════════════════════════════ */
 function _drawFloor(scene) {
   const g = scene.add.graphics().setDepth(0);
+  const RX = 64, RY = 64, RW = WORLD_W - 128, RH = WORLD_H - 128;
 
-  // ── Outer boundary / grass ────────────────────────────────
-  g.fillStyle(0x7ab87a, 1);
+  // ── Dark background ──────────────────────────────────────
+  g.fillStyle(0x0d1117, 1);
   g.fillRect(0, 0, WORLD_W, WORLD_H);
-  // grass texture dots
-  g.fillStyle(0x6aaa6a, 0.4);
-  for (let yy = 8; yy < WORLD_H; yy += 24) {
-    for (let xx = 8; xx < WORLD_W; xx += 24) {
-      g.fillCircle(xx + (yy%48===0?6:0), yy, 3);
-    }
-  }
 
-  // ── Main building floor (warm beige tile) ─────────────────
-  g.fillStyle(0xe8dece, 1);
-  g.fillRect(80, 60, WORLD_W - 160, WORLD_H - 120);
+  // ── Main room floor — dark slate ─────────────────────────
+  g.fillStyle(0x141b26, 1);
+  g.fillRect(RX, RY, RW, RH);
 
-  // tile grid 32×32
-  g.lineStyle(1, 0xd0c4b0, 0.45);
-  for (let xx = 80; xx <= WORLD_W-80; xx += 32) g.lineBetween(xx, 60, xx, WORLD_H-60);
-  for (let yy = 60; yy <= WORLD_H-60; yy += 32) g.lineBetween(80, yy, WORLD_W-80, yy);
+  // ── Subtle 64px tile grid ─────────────────────────────────
+  g.lineStyle(1, 0x1e2a3a, 0.6);
+  for (let xx = RX; xx <= RX + RW; xx += 64) g.lineBetween(xx, RY, xx, RY + RH);
+  for (let yy = RY; yy <= RY + RH; yy += 64) g.lineBetween(RX, yy, RX + RW, yy);
 
-  // ── ROOM 1: Product team (top-left) — blue-grey carpet ────
-  //    x:100 y:80  w:380 h:280
-  g.fillStyle(0xb8c4d8, 1); g.fillRect(100, 80, 380, 280);
-  // carpet pattern
-  g.lineStyle(1, 0xa8b4c8, 0.5);
-  for (let yy = 80; yy <= 360; yy += 20) g.lineBetween(100, yy, 480, yy);
-  for (let xx = 100; xx <= 480; xx += 20) g.lineBetween(xx, 80, xx, 360);
-  // room border
-  _roomBorder(g, 100, 80, 380, 280);
+  // ── Subtle center area accent ────────────────────────────
+  g.fillStyle(0x161e2c, 1);
+  g.fillRect(RX + 64, RY + 64, RW - 128, RH - 128);
 
-  // ── ROOM 2: Meeting room (top-center) — teal carpet ───────
-  //    x:520 y:80  w:340 h:220
-  g.fillStyle(0xb0d0c4, 1); g.fillRect(520, 80, 340, 220);
-  g.lineStyle(1, 0xa0c0b4, 0.5);
-  for (let yy = 80; yy <= 300; yy += 20) g.lineBetween(520, yy, 860, yy);
-  _roomBorder(g, 520, 80, 340, 220);
+  // ── Inner grid (faint) ────────────────────────────────────
+  g.lineStyle(1, 0x192230, 0.4);
+  for (let xx = RX + 64; xx <= RX + RW - 64; xx += 64) g.lineBetween(xx, RY + 64, xx, RY + RH - 64);
+  for (let yy = RY + 64; yy <= RY + RH - 64; yy += 64) g.lineBetween(RX + 64, yy, RX + RW - 64, yy);
 
-  // ── ROOM 3: Lounge / break room (center) — purple carpet ──
-  //    x:380 y:400 w:320 h:260
-  g.fillStyle(0xc8bcd8, 1); g.fillRect(380, 400, 320, 260);
-  g.lineStyle(1, 0xb8acc8, 0.5);
-  for (let yy = 400; yy <= 660; yy += 20) g.lineBetween(380, yy, 700, yy);
-  _roomBorder(g, 380, 400, 320, 260);
+  // ── Wall border ───────────────────────────────────────────
+  g.lineStyle(5, 0x2a3a50, 1);
+  g.strokeRect(RX, RY, RW, RH);
+  g.lineStyle(2, 0x3b4f6a, 0.7);
+  g.strokeRect(RX + 3, RY + 3, RW - 6, RH - 6);
 
-  // ── ROOM 4: CX team (right) — blue-grey carpet ────────────
-  //    x:900 y:80  w:300 h:300
-  g.fillStyle(0xb8c4d8, 1); g.fillRect(900, 80, 300, 300);
-  g.lineStyle(1, 0xa8b4c8, 0.5);
-  for (let yy = 80; yy <= 380; yy += 20) g.lineBetween(900, yy, 1200, yy);
-  _roomBorder(g, 900, 80, 300, 300);
-
-  // ── ROOM 5: Storage / server room (bottom-left) ───────────
-  //    x:100 y:600 w:240 h:240
-  g.fillStyle(0xd0c8b8, 1); g.fillRect(100, 600, 240, 240);
-  g.lineStyle(1, 0xc0b8a8, 0.5);
-  for (let xx = 100; xx <= 340; xx += 16) g.lineBetween(xx, 600, xx, 840);
-  _roomBorder(g, 100, 600, 240, 240);
-
-  // ── ROOM 6: IT / equipment room (bottom-center) ───────────
-  //    x:560 y:580 w:340 h:260
-  g.fillStyle(0xc8d0d8, 1); g.fillRect(560, 580, 340, 260);
-  g.lineStyle(1, 0xb8c0c8, 0.5);
-  for (let yy = 580; yy <= 840; yy += 20) g.lineBetween(560, yy, 900, yy);
-  _roomBorder(g, 560, 580, 340, 260);
-
-  // ── ROOM 7: Executive / admin (bottom-right) ─────────────
-  //    x:940 y:460 w:260 h:380
-  g.fillStyle(0xd4c8bc, 1); g.fillRect(940, 460, 260, 380);
-  g.lineStyle(1, 0xc4b8ac, 0.5);
-  for (let yy = 460; yy <= 840; yy += 20) g.lineBetween(940, yy, 1200, yy);
-  _roomBorder(g, 940, 460, 260, 380);
-
-  // ── Corridors (main floor, slightly darker) ───────────────
-  // vertical corridor center
-  g.fillStyle(0xddd0bc, 0.6);
-  g.fillRect(480, 60, 40, WORLD_H-120);    // left-center corridor
-  g.fillRect(860, 60, 40, WORLD_H-120);   // right corridor
-  g.fillRect(80, 370, WORLD_W-160, 30);   // horizontal corridor top
-  g.fillRect(80, 560, WORLD_W-160, 22);   // horizontal corridor bottom
-
-  // ── Room labels ───────────────────────────────────────────
-  const labels = [
-    { x:290, y:88,  text:'ทีมปฏิบัติการ', color:0x6070a0 },
-    { x:690, y:88,  text:'ห้องประชุม', color:0x508070 },
-    { x:540, y:408, text:'ห้องพักผ่อน', color:0x806090 },
-    { x:1050,y:88,  text:'ฝ่ายสนับสนุน', color:0x6070a0 },
-    { x:220, y:608, text:'ห้องเก็บของ', color:0x706050 },
-    { x:730, y:588, text:'ห้อง IT', color:0x507080 },
-    { x:1070,y:468, text:'ห้องผู้บริหาร', color:0x706050 },
-  ];
-  labels.forEach(l => {
-    scene.add.text(l.x, l.y, l.text, {
-      fontSize:'11px', fontFamily:'Sarabun,sans-serif',
-      color: '#' + l.color.toString(16).padStart(6,'0'),
-      alpha: 0.8,
-    }).setOrigin(0.5, 0).setDepth(1);
+  // ── Corner accent dots ────────────────────────────────────
+  const corners = [[RX, RY],[RX+RW, RY],[RX, RY+RH],[RX+RW, RY+RH]];
+  corners.forEach(([cx, cy]) => {
+    g.fillStyle(0x3b4f6a, 0.8); g.fillCircle(cx, cy, 6);
+    g.fillStyle(0x60a5fa, 0.4); g.fillCircle(cx, cy, 3);
   });
-
-  // ── Decorative trees (outside) ────────────────────────────
-  const trees = [
-    [30,60],[30,200],[30,400],[30,600],[30,800],
-    [WORLD_W-50,80],[WORLD_W-50,300],[WORLD_W-50,600],[WORLD_W-50,800],
-    [160,WORLD_H-50],[400,WORLD_H-50],[700,WORLD_H-50],[1000,WORLD_H-50],
-    [200,30],[500,30],[800,30],[1100,30],
-  ];
-  trees.forEach(([tx,ty]) => _drawTree(scene, tx, ty));
 }
 
-function _roomBorder(g, x, y, w, h) {
-  // thick wall
-  g.lineStyle(4, 0x8b7355, 1);
-  g.strokeRect(x, y, w, h);
-  // inner highlight
-  g.lineStyle(1.5, 0xaa9070, 0.6);
-  g.strokeRect(x+2, y+2, w-4, h-4);
-}
+// _roomBorder removed (minimal single room)
 
-function _drawTree(scene, tx, ty) {
-  const g = scene.add.graphics().setDepth(1);
-  // trunk
-  g.fillStyle(0x8B6914, 1);
-  g.fillRect(tx-4, ty-2, 8, 14);
-  // canopy shadow
-  g.fillStyle(0x3a8a3a, 0.4);
-  g.fillCircle(tx+3, ty+3, 18);
-  // canopy
-  g.fillStyle(0x4aaa4a, 1);
-  g.fillCircle(tx, ty-6, 18);
-  // highlight
-  g.fillStyle(0x6acc6a, 0.6);
-  g.fillCircle(tx-4, ty-10, 8);
-}
+// _drawTree removed
 
-function _drawBorder(scene) {
-  // outer frame — dark border around the whole world
-  const g = scene.add.graphics().setDepth(1);
-  g.lineStyle(6, 0x5a4a30, 1);
-  g.strokeRect(3, 3, WORLD_W-6, WORLD_H-6);
-  g.lineStyle(2, 0x8b7355, 0.8);
-  g.strokeRect(7, 7, WORLD_W-14, WORLD_H-14);
+function _drawBorder(_scene) {
+  // border is now drawn inside _drawFloor
 }
 
 /* ═══════════════════════════════════════════════════════════════

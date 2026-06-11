@@ -95,18 +95,22 @@ function buildGenderPicker() {
   function renderPreview() {
     drawAvatarToCanvas(canvas, currentAppearance);
     const ap = currentAppearance;
-    const HAIR_NAMES   = ['ดำ','น้ำตาลเข้ม','น้ำตาล','ทอง','บลอนด์','แดง','ม่วง','ฟ้า'];
-    const HAT_NAMES    = ['ไม่มี','หมวกแก๊ป','หมวกไหมพรม','หมวกฟาง','หมวกเบเร่ต์'];
-    const ITEM_NAMES   = ['ไม่มี','กาแฟ','โทรศัพท์','กระเป๋า','หนังสือ','ดอกไม้'];
-    const HAIR_STYLE_M = ['สั้น','แสกข้าง','ยุ่ง','ซอย'];
-    const HAIR_STYLE_F = ['ยาว','หางม้า','มวย','บ็อบ'];
-    const SKIN_NAMES   = ['ขาวมาก','ขาว','แทน','น้ำตาล','เข้ม','เข้มมาก'];
+    const HAIR_NAMES   = ['ดำ','น้ำตาลเข้ม','น้ำตาล','ทอง','บลอนด์','แดง','ม่วง','ฟ้า','เขียว','ส้ม','ทองสด','น้ำเงิน','ม่วงเข้ม','เทอร์ควอยซ์','เงิน','แดงเข้ม'];
+    const HAT_NAMES    = ['ไม่มี','หมวกแก๊ป','หมวกไหมพรม','หมวกฟาง','หมวกเบเร่ต์','หมวกเฟดอร่า','ที่คาดผม'];
+    const ITEM_NAMES   = ['ไม่มี','กาแฟ','โทรศัพท์','กระเป๋า','หนังสือ','ดอกไม้','ร่ม','กล้อง','หูฟัง'];
+    const HAIR_STYLE_M = ['สั้น','แสกข้าง','ยุ่ง','ซอย','กลาง','หวีขึ้น'];
+    const HAIR_STYLE_F = ['ยาว','หางม้า','มวย','บ็อบ','ทวินเทล','ลอน'];
+    const SKIN_NAMES   = ['ขาวมาก','ขาว','ขาวอมชมพู','แทน','น้ำตาลอ่อน','น้ำตาล','เข้ม','เข้มมาก','ขาวนวล','แทนทอง','น้ำตาลแดง','เข้มพิเศษ'];
+    const EYE_NAMES    = ['น้ำตาล','ฟ้า','เขียว','น้ำผึ้ง'];
     const isFem = ap.gender==='f';
+    const blushText = ap.blush ? '✓' : '—';
     $('apTraits').innerHTML = `
-      🧴 ผิว: ${SKIN_NAMES[ap.skinIdx]}<br>
-      💇 ผม: ${HAIR_NAMES[ap.hairIdx]} / ${isFem?HAIR_STYLE_F[ap.hairStyle]:HAIR_STYLE_M[ap.hairStyle]}<br>
-      🎩 หมวก: ${HAT_NAMES[ap.hatType]}<br>
-      🎒 ของ: ${ITEM_NAMES[ap.itemType]}
+      🧴 ผิว: ${SKIN_NAMES[ap.skinIdx % SKIN_NAMES.length]}<br>
+      💇 ผม: ${HAIR_NAMES[ap.hairIdx % HAIR_NAMES.length]} / ${isFem?HAIR_STYLE_F[ap.hairStyle%6]:HAIR_STYLE_M[ap.hairStyle%6]}<br>
+      👁️ ตา: ${EYE_NAMES[(ap.eyeColor??0) % EYE_NAMES.length]}<br>
+      🎩 หมวก: ${HAT_NAMES[(ap.hatType??0) % HAT_NAMES.length]}<br>
+      🎒 ของ: ${ITEM_NAMES[(ap.itemType??0) % ITEM_NAMES.length]}<br>
+      🌸 แก้ม: ${blushText}
     `;
   }
 
