@@ -1,6 +1,3 @@
-/**
- * config.js — แก้แล้วตาม Firebase project จริง
- */
 export const FIREBASE_CONFIG = {
   apiKey:            "AIzaSyCJaI-ox-DmXU9cdPK_Fv8eXmz2BrBBuD0",
   authDomain:        "vroom-d693c.firebaseapp.com",
@@ -12,7 +9,7 @@ export const FIREBASE_CONFIG = {
 };
 
 export const ROOM_ID         = "main-room";
-export const WORLD_W         = 64 * 16;   // 1024 — grid 64px-based
-export const WORLD_H         = 64 * 12;   // 768
+export const WORLD_W         = 1200;
+export const WORLD_H         = 960;
 export const SYNC_RATE_MS    = 100;
 export const IDLE_TIMEOUT_MS = 15000;

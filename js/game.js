@@ -233,51 +233,104 @@ function _hitTest(wx, wy) {
 ═══════════════════════════════════════════════════════════════ */
 function _drawFloor(scene) {
   const g = scene.add.graphics().setDepth(0);
-  const RX = 64, RY = 64, RW = WORLD_W - 128, RH = WORLD_H - 128;
 
-  // ── Dark background ──────────────────────────────────────
-  g.fillStyle(0x0d1117, 1);
+  // ── Background — dark charcoal ────────────────────────
+  g.fillStyle(0x12161e, 1);
   g.fillRect(0, 0, WORLD_W, WORLD_H);
 
-  // ── Main room floor — dark slate ─────────────────────────
-  g.fillStyle(0x141b26, 1);
-  g.fillRect(RX, RY, RW, RH);
+  // Room definitions matching objects.js layout
+  const rooms = [
+    { x:300, y:40,  w:420, h:280, color:0x1a2235, border:0x2a4060, label:'Central Command', lx:510, ly:48 },
+    { x:760, y:40,  w:380, h:280, color:0x1a2030, border:0x243850, label:'Data Bay',         lx:950, ly:48 },
+    { x:40,  y:360, w:340, h:260, color:0x1c2030, border:0x2a3a55, label:'Macro Station',    lx:210, ly:368 },
+    { x:420, y:360, w:340, h:260, color:0x1e2235, border:0x2a3a55, label:'Risk Desk',        lx:590, ly:368 },
+    { x:40,  y:660, w:340, h:260, color:0x181e2c, border:0x243048, label:'Sim Lab',          lx:210, ly:668 },
+    { x:420, y:660, w:380, h:260, color:0x1a2030, border:0x2a3858, label:'Quant Corner',     lx:610, ly:668 },
+  ];
 
-  // ── Subtle 64px tile grid ─────────────────────────────────
-  g.lineStyle(1, 0x1e2a3a, 0.6);
-  for (let xx = RX; xx <= RX + RW; xx += 64) g.lineBetween(xx, RY, xx, RY + RH);
-  for (let yy = RY; yy <= RY + RH; yy += 64) g.lineBetween(RX, yy, RX + RW, yy);
+  rooms.forEach(r => {
+    // Floor fill
+    g.fillStyle(r.color, 1);
+    g.fillRect(r.x, r.y, r.w, r.h);
 
-  // ── Subtle center area accent ────────────────────────────
-  g.fillStyle(0x161e2c, 1);
-  g.fillRect(RX + 64, RY + 64, RW - 128, RH - 128);
+    // Subtle tile grid 32px
+    g.lineStyle(1, 0x1e2a3a, 0.35);
+    for (let xx = r.x; xx <= r.x+r.w; xx += 32) g.lineBetween(xx, r.y, xx, r.y+r.h);
+    for (let yy = r.y; yy <= r.y+r.h; yy += 32) g.lineBetween(r.x, yy, r.x+r.w, yy);
 
-  // ── Inner grid (faint) ────────────────────────────────────
-  g.lineStyle(1, 0x192230, 0.4);
-  for (let xx = RX + 64; xx <= RX + RW - 64; xx += 64) g.lineBetween(xx, RY + 64, xx, RY + RH - 64);
-  for (let yy = RY + 64; yy <= RY + RH - 64; yy += 64) g.lineBetween(RX + 64, yy, RX + RW - 64, yy);
+    // Wall border — thick outer
+    g.lineStyle(4, r.border, 1);
+    g.strokeRect(r.x, r.y, r.w, r.h);
+    // Inner highlight line
+    g.lineStyle(1.5, 0x3a5070, 0.5);
+    g.strokeRect(r.x+3, r.y+3, r.w-6, r.h-6);
 
-  // ── Wall border ───────────────────────────────────────────
-  g.lineStyle(5, 0x2a3a50, 1);
-  g.strokeRect(RX, RY, RW, RH);
-  g.lineStyle(2, 0x3b4f6a, 0.7);
-  g.strokeRect(RX + 3, RY + 3, RW - 6, RH - 6);
-
-  // ── Corner accent dots ────────────────────────────────────
-  const corners = [[RX, RY],[RX+RW, RY],[RX, RY+RH],[RX+RW, RY+RH]];
-  corners.forEach(([cx, cy]) => {
-    g.fillStyle(0x3b4f6a, 0.8); g.fillCircle(cx, cy, 6);
-    g.fillStyle(0x60a5fa, 0.4); g.fillCircle(cx, cy, 3);
+    // Corner rivets
+    [[r.x,r.y],[r.x+r.w,r.y],[r.x,r.y+r.h],[r.x+r.w,r.y+r.h]].forEach(([cx,cy]) => {
+      g.fillStyle(r.border, 1); g.fillCircle(cx, cy, 5);
+      g.fillStyle(0x60a5fa, 0.5); g.fillCircle(cx, cy, 2.5);
+    });
   });
+
+  // ── Corridors connecting rooms ─────────────────────────
+  // Vertical: Central Command ↔ below
+  g.fillStyle(0x141824, 1);
+  g.fillRect(460, 320, 100, 40);   // CC → mid row
+  g.fillRect(460, 620, 100, 40);   // mid row → bottom row
+  // Horizontal: mid row L ↔ R
+  g.fillRect(380, 400, 40, 180);
+  // Horizontal: bottom row L ↔ R
+  g.fillRect(380, 700, 40, 180);
+  // Corridor grid lines
+  g.lineStyle(1, 0x1e2a3a, 0.3);
+  g.lineBetween(460,320, 460,360); g.lineBetween(560,320, 560,360);
+  g.lineBetween(460,620, 460,660); g.lineBetween(560,620, 560,660);
+
+  // ── Corridor arrows (decorative) ──────────────────────
+  _drawArrow(g, 510, 335, 'down', 0x3a5070);
+  _drawArrow(g, 510, 635, 'down', 0x3a5070);
+  _drawArrow(g, 395, 490, 'right', 0x3a5070);
+  _drawArrow(g, 395, 790, 'right', 0x3a5070);
+  _drawArrow(g, 410, 490, 'left', 0x3a5070);
+  _drawArrow(g, 410, 790, 'left', 0x3a5070);
+
+  // ── Room labels ───────────────────────────────────────
+  const labelStyle = { fontSize:'11px', fontFamily:'Sarabun,sans-serif', alpha:0.85 };
+  rooms.forEach(r => {
+    scene.add.text(r.lx, r.ly, r.label, {
+      ...labelStyle,
+      color:'#' + (r.border).toString(16).padStart(6,'0').replace(/^.{0}/,''),
+    }).setOrigin(0.5, 0).setDepth(1).setColor('#5a8ab0').setAlpha(0.9);
+  });
+
+  // ── Outer edge dark vignette bars ────────────────────
+  g.fillStyle(0x0a0d14, 1);
+  g.fillRect(0,0,WORLD_W,40);          // top
+  g.fillRect(0,WORLD_H-40,WORLD_W,40); // bottom
+  g.fillRect(0,0,40,WORLD_H);          // left
+  g.fillRect(WORLD_W-40,0,40,WORLD_H); // right
+}
+
+function _drawArrow(g, x, y, dir, color) {
+  g.fillStyle(color, 0.6);
+  g.lineStyle(1, color, 0.4);
+  const s = 6;
+  if (dir === 'down') {
+    g.fillTriangle(x, y+s, x-s, y-s, x+s, y-s);
+  } else if (dir === 'up') {
+    g.fillTriangle(x, y-s, x-s, y+s, x+s, y+s);
+  } else if (dir === 'right') {
+    g.fillTriangle(x+s, y, x-s, y-s, x-s, y+s);
+  } else {
+    g.fillTriangle(x-s, y, x+s, y-s, x+s, y+s);
+  }
 }
 
 // _roomBorder removed (minimal single room)
 
 // _drawTree removed
 
-function _drawBorder(_scene) {
-  // border is now drawn inside _drawFloor
-}
+function _drawBorder(_scene) { /* handled in _drawFloor */ }
 
 /* ═══════════════════════════════════════════════════════════════
    3D ISOMETRIC OBJECT RENDERER

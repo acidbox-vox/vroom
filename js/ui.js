@@ -96,21 +96,20 @@ function buildGenderPicker() {
     drawAvatarToCanvas(canvas, currentAppearance);
     const ap = currentAppearance;
     const HAIR_NAMES   = ['ดำ','น้ำตาลเข้ม','น้ำตาล','ทอง','บลอนด์','แดง','ม่วง','ฟ้า','เขียว','ส้ม','ทองสด','น้ำเงิน','ม่วงเข้ม','เทอร์ควอยซ์','เงิน','แดงเข้ม'];
-    const HAT_NAMES    = ['ไม่มี','หมวกแก๊ป','หมวกไหมพรม','หมวกฟาง','หมวกเบเร่ต์','หมวกเฟดอร่า','ที่คาดผม'];
-    const ITEM_NAMES   = ['ไม่มี','กาแฟ','โทรศัพท์','กระเป๋า','หนังสือ','ดอกไม้','ร่ม','กล้อง','หูฟัง'];
-    const HAIR_STYLE_M = ['สั้น','แสกข้าง','ยุ่ง','ซอย','กลาง','หวีขึ้น'];
-    const HAIR_STYLE_F = ['ยาว','หางม้า','มวย','บ็อบ','ทวินเทล','ลอน'];
+    const HAIR_STYLE_M = ['สั้นเรียบ','แสกข้าง','ยุ่ง','ซอยสั้น','หวีขึ้น','หน้ายาว'];
+    const HAIR_STYLE_F = ['ยาวตรง','หางม้า','มวย','บ็อบ','ทวินเทล','พิกซี่'];
     const SKIN_NAMES   = ['ขาวมาก','ขาว','ขาวอมชมพู','แทน','น้ำตาลอ่อน','น้ำตาล','เข้ม','เข้มมาก','ขาวนวล','แทนทอง','น้ำตาลแดง','เข้มพิเศษ'];
     const EYE_NAMES    = ['น้ำตาล','ฟ้า','เขียว','น้ำผึ้ง'];
+    const TIE_NAMES    = ['ไม่มี','แดง','น้ำเงิน','เขียว','เหลือง','ม่วง','ส้ม','ฟิโรส','ขาว','แซลมอน','ชมพู','เขียวสด'];
+    const ACCESS_NAMES = ['ไม่มี','ต่างหู','สร้อย','บัตรพนักงาน'];
     const isFem = ap.gender==='f';
-    const blushText = ap.blush ? '✓' : '—';
     $('apTraits').innerHTML = `
       🧴 ผิว: ${SKIN_NAMES[ap.skinIdx % SKIN_NAMES.length]}<br>
-      💇 ผม: ${HAIR_NAMES[ap.hairIdx % HAIR_NAMES.length]} / ${isFem?HAIR_STYLE_F[ap.hairStyle%6]:HAIR_STYLE_M[ap.hairStyle%6]}<br>
-      👁️ ตา: ${EYE_NAMES[(ap.eyeColor??0) % EYE_NAMES.length]}<br>
-      🎩 หมวก: ${HAT_NAMES[(ap.hatType??0) % HAT_NAMES.length]}<br>
-      🎒 ของ: ${ITEM_NAMES[(ap.itemType??0) % ITEM_NAMES.length]}<br>
-      🌸 แก้ม: ${blushText}
+      💇 ผม: ${HAIR_NAMES[ap.hairIdx % HAIR_NAMES.length]} / ${isFem?HAIR_STYLE_F[(ap.hairStyle??0)%6]:HAIR_STYLE_M[(ap.hairStyle??0)%6]}<br>
+      👁️ ตา: ${EYE_NAMES[(ap.eyeIdx??0) % EYE_NAMES.length]}${ap.glasses?' 👓':''}<br>
+      👔 เนคไท: ${TIE_NAMES[(ap.tieIdx??0) % TIE_NAMES.length]}<br>
+      📎 ของ: ${ACCESS_NAMES[(ap.accessory??0) % ACCESS_NAMES.length]}<br>
+      🌸 แก้ม: ${ap.blush?'✓':'—'}
     `;
   }
 
