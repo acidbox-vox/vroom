@@ -212,6 +212,13 @@ export async function loadBoardContent() {
   return snap.val()?.html ?? null;
 }
 
+export function listenBoardContent(onChange) {
+  const r = ref(db, `rooms/${ROOM_ID}/board/content`);
+  const h = (snap) => onChange(snap.exists() ? (snap.val()?.html ?? null) : null);
+  onValue(r, h);
+  return () => off(r, 'value', h);
+}
+
 /* ═══════════════════════════════════════════════════════════════
    HEARTBEAT + CLEANUP
 ═══════════════════════════════════════════════════════════════ */

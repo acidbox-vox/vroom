@@ -230,8 +230,8 @@ export function openObjectModal(obj) {
   contentModalBody.innerHTML='';
   if (obj.actionType==='url') { window.open(obj.actionValue,'_blank','noopener'); return; }
 
-  // ── กระดานประกาศ: load จาก Firebase + admin editor ──
-  if (obj.id === 'board01') {
+  // ── จอกลาง (Central Monitor): load จาก Firebase + admin editor ──
+  if (obj.id === 'central_monitor') {
     _openBoard(obj);
     return;
   }
