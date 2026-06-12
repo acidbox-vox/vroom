@@ -248,20 +248,32 @@ export function listenSystemLinks(onChange) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   LEVEL-2 ADMIN — username stored by SYS-06, admin-only write
+   LEVEL-2 ADMINS — list of usernames, admin-only write
 ═══════════════════════════════════════════════════════════════ */
-export async function saveLevel2Username(username) {
-  await set(ref(db, `rooms/${ROOM_ID}/level2/username`), String(username || '').slice(0, 20));
+export async function addLevel2Username(username) {
+  const name = String(username || '').trim().slice(0, 20);
+  if (!name) return;
+  const snap = await get(ref(db, `rooms/${ROOM_ID}/level2/users`));
+  const list = snap.exists() ? snap.val() : [];
+  if (!list.includes(name)) list.push(name);
+  await set(ref(db, `rooms/${ROOM_ID}/level2/users`), list);
 }
 
-export async function loadLevel2Username() {
-  const snap = await get(ref(db, `rooms/${ROOM_ID}/level2/username`));
-  return snap.exists() ? snap.val() : '';
+export async function removeLevel2Username(username) {
+  const snap = await get(ref(db, `rooms/${ROOM_ID}/level2/users`));
+  const list = snap.exists() ? snap.val() : [];
+  const filtered = list.filter(n => n !== username);
+  await set(ref(db, `rooms/${ROOM_ID}/level2/users`), filtered);
 }
 
-export function listenLevel2Username(onChange) {
-  const r = ref(db, `rooms/${ROOM_ID}/level2/username`);
-  const h = (snap) => onChange(snap.exists() ? snap.val() : '');
+export async function loadLevel2Usernames() {
+  const snap = await get(ref(db, `rooms/${ROOM_ID}/level2/users`));
+  return snap.exists() ? snap.val() : [];
+}
+
+export function listenLevel2Usernames(onChange) {
+  const r = ref(db, `rooms/${ROOM_ID}/level2/users`);
+  const h = (snap) => onChange(snap.exists() ? snap.val() : []);
   onValue(r, h);
   return () => off(r, 'value', h);
 }

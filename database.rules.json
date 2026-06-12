@@ -69,7 +69,10 @@
         "level2": {
           ".read":  true,
           ".write": true,
-          "username": { ".validate": "newData.isString() && newData.val().length <= 20" }
+          "users": {
+            ".validate": "newData.hasChildren() || !newData.exists()",
+            "$index": { ".validate": "newData.isString() && newData.val().length <= 20" }
+          }
         }
       }
     }

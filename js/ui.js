@@ -2,7 +2,7 @@
  * ui.js — Gender picker + randomize appearance
  */
 import { ROOM_OBJECTS } from './objects.js';
-import { saveBoardContent, loadBoardContent, saveSystemLink, listenSystemLinks, saveLevel2Username, listenLevel2Username } from './firebase.js';
+import { saveBoardContent, loadBoardContent, saveSystemLink, listenSystemLinks, addLevel2Username, removeLevel2Username, listenLevel2Usernames } from './firebase.js';
 import { randomAppearance, drawAvatarToCanvas, resolveAp } from './player.js';
 
 const $ = id => document.getElementById(id);
@@ -194,14 +194,15 @@ export function updateUserList(players, myId) {
     if (p.idle) li.classList.add('user-idle');
 
     const cv = document.createElement('canvas');
-    cv.width=28; cv.height=36; cv.className='user-avatar-sm';
+    cv.width=24; cv.height=32; cv.className='user-avatar-sm';
     drawAvatarToCanvas(cv, p);
 
     const ns = document.createElement('span'); ns.className='user-name';
     const isAdminUser = p.username === '0910655667';
+    const isLevel2User = _level2Usernames.includes(p.username);
     ns.innerHTML = isAdminUser
       ? '👑 <span style="color:#ffd700;font-weight:700;text-shadow:0 0 8px #ffd700aa">ADMIN</span>' + (isMe?' <span class="me-tag">(ฉัน)</span>':'')
-      : escapeHtml(p.username)+(isMe?' <span class="me-tag">(ฉัน)</span>':'');
+      : (isLevel2User ? '⭐ ' : '') + escapeHtml(p.username) + (isMe?' <span class="me-tag">(ฉัน)</span>':'');
     const dot = document.createElement('span'); dot.className='user-status-dot';
     li.append(cv, ns, dot); userList.appendChild(li);
   });
@@ -249,11 +250,12 @@ export function openObjectModal(obj) {
 }
 
 /* ── Permission helpers ──────────────────────────────────────── */
-let _level2Username = '';
-export function setLevel2Username(name) { _level2Username = String(name || '').trim(); }
+let _level2Usernames = [];
+export function setLevel2Usernames(list) { _level2Usernames = Array.isArray(list) ? list : []; }
+export function getLevel2Usernames() { return _level2Usernames; }
 function _isAdminUser() { return _currentUsername === '0910655667'; }
 function _isLevel2User() {
-  return _level2Username !== '' && _currentUsername === _level2Username;
+  return _level2Usernames.includes(_currentUsername);
 }
 
 /* ── SYS-01..06 modal: name+link, read-only for normal users,
@@ -269,28 +271,36 @@ async function _openSystem(obj) {
   if (canEdit) {
     const level2Section = (obj.hasLevel2AdminSection && _isAdminUser()) ? `
       <div style="margin-top:14px;padding-top:12px;border-top:1px solid #1e2535">
-        <div style="font-size:11px;color:#ffd700;margin-bottom:6px">🛡️ ตั้งชื่อผู้ใช้สิทธิ์ระดับ 2</div>
-        <input id="lvl2Input" type="text" value="${_ea(_level2Username)}" placeholder="ชื่อผู้ใช้ (username)" style="
-          width:100%; box-sizing:border-box; background:#0d1117; border:1.5px solid #ffd700;
-          border-radius:8px; padding:10px 12px; color:#e8ecf4; font-size:13px;
-          font-family:Sarabun,sans-serif; outline:none;
-        ">
-        <div style="font-size:11px;color:#4a5568;margin:8px 0">
-          ผู้ใช้ที่มีชื่อตรงกันจะได้: ออร่าวงแหวนสีเหลืองใต้ตัวละคร และสิทธิ์แก้ไข SYS-01, 02, 03
+        <div style="font-size:11px;color:#ffd700;margin-bottom:6px">🛡️ ผู้ใช้สิทธิ์ระดับ 2</div>
+        <div id="lvl2List" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">
+          ${_level2Usernames.length === 0
+            ? `<div style="font-size:12px;color:#4a5568;text-align:center;padding:8px 0">— ยังไม่มีผู้ใช้ —</div>`
+            : _level2Usernames.map(n => `
+              <div style="display:flex;align-items:center;justify-content:space-between;background:#0d1117;border:1px solid #2a3242;border-radius:7px;padding:6px 10px">
+                <span style="font-size:13px;color:#ffd700">⭐ ${escapeHtml(n)}</span>
+                <button class="lvl2DelBtn" data-name="${_ea(n)}" style="
+                  background:#3a1414; border:1px solid #ff5555; color:#ff8888;
+                  padding:3px 10px; border-radius:5px; cursor:pointer; font-size:11px;
+                  font-family:Sarabun,sans-serif;
+                ">ลบ</button>
+              </div>`).join('')}
         </div>
-        <div style="display:flex;gap:8px">
-          <button id="lvl2SaveBtn" style="
-            flex:1; background:#3a3010; border:1px solid #ffd700; color:#ffd700;
-            padding:9px; border-radius:7px; cursor:pointer; font-size:13px;
+        <div style="display:flex;gap:8px;margin-bottom:6px">
+          <input id="lvl2Input" type="text" placeholder="เพิ่มชื่อผู้ใช้ (username)" style="
+            flex:1; box-sizing:border-box; background:#0d1117; border:1.5px solid #ffd700;
+            border-radius:8px; padding:9px 12px; color:#e8ecf4; font-size:13px;
+            font-family:Sarabun,sans-serif; outline:none;
+          ">
+          <button id="lvl2AddBtn" style="
+            background:#3a3010; border:1px solid #ffd700; color:#ffd700;
+            padding:0 16px; border-radius:7px; cursor:pointer; font-size:13px;
             font-family:Sarabun,sans-serif; font-weight:700; transition:.15s
-          ">💾 บันทึกสิทธิ์</button>
-          <button id="lvl2ClearBtn" style="
-            flex:1; background:#1c2535; border:1px solid #3b82f6; color:#60a5fa;
-            padding:9px; border-radius:7px; cursor:pointer; font-size:13px;
-            font-family:Sarabun,sans-serif; transition:.15s
-          ">✕ ล้างสิทธิ์</button>
+          ">+ เพิ่ม</button>
         </div>
-        <div id="lvl2SaveMsg" style="margin-top:8px;font-size:12px;color:#4ade80;text-align:center;min-height:18px"></div>
+        <div style="font-size:11px;color:#4a5568;margin-bottom:4px">
+          ผู้ใช้ในรายชื่อจะได้: ออร่าวงแหวนสีเหลืองใต้ตัวละคร, ดาว ⭐ นำหน้าชื่อ และสิทธิ์แก้ไข SYS-01, 02, 03
+        </div>
+        <div id="lvl2SaveMsg" style="margin-top:6px;font-size:12px;color:#4ade80;text-align:center;min-height:18px"></div>
       </div>
     ` : '';
 
@@ -347,34 +357,58 @@ async function _openSystem(obj) {
     $('sysOpenBtn')?.addEventListener('click', () => window.open(url, '_blank', 'noopener'));
 
     if (obj.hasLevel2AdminSection && _isAdminUser()) {
-      $('lvl2SaveBtn').addEventListener('click', async () => {
-        const btn = $('lvl2SaveBtn'); const msg = $('lvl2SaveMsg');
-        const lvl2Name = $('lvl2Input').value.trim();
-        btn.textContent = '⏳ กำลังบันทึก...'; btn.disabled = true;
+      $('lvl2AddBtn').addEventListener('click', async () => {
+        const btn = $('lvl2AddBtn'); const msg = $('lvl2SaveMsg');
+        const newName = $('lvl2Input').value.trim();
+        if (!newName) return;
+        btn.textContent = '⏳'; btn.disabled = true;
         try {
-          await saveLevel2Username(lvl2Name);
-          _level2Username = lvl2Name;
-          msg.textContent = '✅ บันทึกสำเร็จ!';
-          btn.textContent = '💾 บันทึกสิทธิ์'; btn.disabled = false;
-        } catch (err) {
-          msg.style.color = '#ff5555';
-          msg.textContent = '❌ บันทึกไม่สำเร็จ: ' + (err.message || err);
-          btn.textContent = '💾 บันทึกสิทธิ์'; btn.disabled = false;
-        }
-      });
-      $('lvl2ClearBtn').addEventListener('click', async () => {
-        const msg = $('lvl2SaveMsg');
-        try {
-          await saveLevel2Username('');
-          _level2Username = '';
+          await addLevel2Username(newName);
+          if (!_level2Usernames.includes(newName)) _level2Usernames.push(newName);
           $('lvl2Input').value = '';
-          msg.style.color = '#4ade80';
-          msg.textContent = '✅ ล้างสิทธิ์แล้ว';
+          msg.textContent = '✅ เพิ่มสำเร็จ!';
+          _refreshLevel2List();
         } catch (err) {
           msg.style.color = '#ff5555';
           msg.textContent = '❌ ไม่สำเร็จ: ' + (err.message || err);
         }
+        btn.textContent = '+ เพิ่ม'; btn.disabled = false;
       });
+
+      // delegate delete clicks (list re-renders dynamically)
+      $('lvl2List').addEventListener('click', async (e) => {
+        const delBtn = e.target.closest('.lvl2DelBtn');
+        if (!delBtn) return;
+        const name = delBtn.dataset.name;
+        const msg = $('lvl2SaveMsg');
+        delBtn.textContent = '⏳'; delBtn.disabled = true;
+        try {
+          await removeLevel2Username(name);
+          _level2Usernames = _level2Usernames.filter(n => n !== name);
+          msg.style.color = '#4ade80';
+          msg.textContent = `✅ ลบ "${name}" แล้ว`;
+          _refreshLevel2List();
+        } catch (err) {
+          msg.style.color = '#ff5555';
+          msg.textContent = '❌ ไม่สำเร็จ: ' + (err.message || err);
+          delBtn.textContent = 'ลบ'; delBtn.disabled = false;
+        }
+      });
+
+      function _refreshLevel2List() {
+        const listEl = $('lvl2List');
+        listEl.innerHTML = _level2Usernames.length === 0
+          ? `<div style="font-size:12px;color:#4a5568;text-align:center;padding:8px 0">— ยังไม่มีผู้ใช้ —</div>`
+          : _level2Usernames.map(n => `
+            <div style="display:flex;align-items:center;justify-content:space-between;background:#0d1117;border:1px solid #2a3242;border-radius:7px;padding:6px 10px">
+              <span style="font-size:13px;color:#ffd700">⭐ ${escapeHtml(n)}</span>
+              <button class="lvl2DelBtn" data-name="${_ea(n)}" style="
+                background:#3a1414; border:1px solid #ff5555; color:#ff8888;
+                padding:3px 10px; border-radius:5px; cursor:pointer; font-size:11px;
+                font-family:Sarabun,sans-serif;
+              ">ลบ</button>
+            </div>`).join('');
+      }
     }
 
   } else {

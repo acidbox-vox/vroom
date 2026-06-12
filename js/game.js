@@ -8,7 +8,7 @@ import {
   showTooltip, moveTooltip, hideTooltip,
   openObjectModal, showNotification,
   updateMinimap, drawMinimapBg,
-  clickEffect, setCurrentUsername, setLevel2Username,
+  clickEffect, setCurrentUsername, setLevel2Usernames,
 } from './ui.js';
 import { initChat, appendSystemMsg } from './chat.js';
 import { LocalPlayer, RemotePlayer, PLAYER_SPEED, preloadSprites, setLevel2Checker } from './player.js';
@@ -16,7 +16,7 @@ import { ROOM_OBJECTS } from './objects.js';
 import {
   SESSION_ID, joinRoom, isNameTaken,
   emitMove, listenPlayers, startHeartbeat, listenBoardContent,
-  listenSystemLinks, listenLevel2Username,
+  listenSystemLinks, listenLevel2Usernames,
 } from './firebase.js';
 
 /* ── keep ref to localPlayer for chat bubble ────────────────── */
@@ -96,6 +96,12 @@ function _bootGame(user, spawnX, spawnY) {
       .startFollow(localPlayer.container, true, 0.1, 0.1);
 
     cursors = scene.input.keyboard.createCursorKeys();
+    // ป้องกัน Phaser ดักจับปุ่ม Space/Enter ไว้ทั้งหน้า (ทำให้พิมพ์เว้นวรรค/ขึ้นบรรทัดใหม่ใน
+    // ช่อง contenteditable เช่น Central Monitor editor ไม่ได้)
+    scene.input.keyboard.removeCapture([
+      Phaser.Input.Keyboard.KeyCodes.SPACE,
+      Phaser.Input.Keyboard.KeyCodes.ENTER,
+    ]);
     // no WASD — arrow keys only
 
     // Pointer move: tooltip
@@ -133,7 +139,7 @@ function _bootGame(user, spawnX, spawnY) {
     _bindFirebase(scene);
     _bindCentralMonitor(scene);
     _bindSystemLinks();
-    _bindLevel2Username();
+    _bindLevel2Usernames();
     initChat(user.username, () => localPlayer, () => remotePlayers);
     drawMinimapBg(WORLD_W, WORLD_H);
   }
@@ -153,14 +159,15 @@ function _bootGame(user, spawnX, spawnY) {
     });
   }
 
-  /* ── LEVEL-2 USERNAME LIVE SYNC ───────────────────────────── */
-  function _bindLevel2Username() {
-    listenLevel2Username((name) => {
-      setLevel2Username(name);
-      setLevel2Checker((username) => name !== '' && username === name);
-      // refresh aura on existing players
+  let _lastPlayersMap = null;
+  function _bindLevel2Usernames() {
+    listenLevel2Usernames((list) => {
+      setLevel2Usernames(list);
+      setLevel2Checker((username) => list.includes(username));
+      // refresh aura + name tag on existing players
       if (localPlayer) localPlayer.refreshLevel2Aura?.();
       Object.values(remotePlayers).forEach(rp => rp.refreshLevel2Aura?.());
+      if (_lastPlayersMap) updateUserList(_lastPlayersMap, SESSION_ID);
     });
   }
 
@@ -259,6 +266,7 @@ function _bootGame(user, spawnX, spawnY) {
         },
         ...validRemote,
       };
+      _lastPlayersMap = allPlayers;
       updateUserList(allPlayers, SESSION_ID);
     });
   }
