@@ -226,11 +226,13 @@ export function listenBoardContent(onChange) {
 /* ═══════════════════════════════════════════════════════════════
    SYSTEM LINKS — SYS-01..06, admin/level2 editable
 ═══════════════════════════════════════════════════════════════ */
-export async function saveSystemLink(sysId, url) {
-  await set(ref(db, `rooms/${ROOM_ID}/systems/${sysId}`), {
+export async function saveSystemLink(sysId, url, name) {
+  const payload = {
     url:       String(url || '').slice(0, 500),
     updatedAt: Date.now(),
-  });
+  };
+  if (name !== undefined) payload.name = String(name || '').slice(0, 40);
+  await set(ref(db, `rooms/${ROOM_ID}/systems/${sysId}`), payload);
 }
 
 export async function loadSystemLinks() {

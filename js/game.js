@@ -138,12 +138,16 @@ function _bootGame(user, spawnX, spawnY) {
     drawMinimapBg(WORLD_W, WORLD_H);
   }
 
-  /* ── SYSTEM LINKS LIVE SYNC (SYS-01..05) ─────────────────── */
+  /* ── SYSTEM LINKS LIVE SYNC (SYS-01..06) ─────────────────── */
   function _bindSystemLinks() {
     listenSystemLinks((data) => {
       ROOM_OBJECTS.forEach(obj => {
         if (obj.actionType === 'system' && data[obj.id]) {
           obj.actionValue = data[obj.id].url || '';
+          if (data[obj.id].name) {
+            obj.displayName = data[obj.id].name;
+            obj._labelText?.setText(obj.displayName);
+          }
         }
       });
     });
@@ -379,7 +383,7 @@ function _drawObjects(scene) {
 
     // name label under object
     const cx = obj.x + obj.width / 2;
-    scene.add.text(cx, obj.y + obj.height + 6, obj.name, {
+    obj._labelText = scene.add.text(cx, obj.y + obj.height + 6, obj.displayName || obj.name, {
       fontSize: '9px', fontFamily: 'Sarabun, sans-serif',
       color: '#8899bb', align: 'center',
       stroke: '#0a0e17', strokeThickness: 3,

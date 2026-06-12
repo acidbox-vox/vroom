@@ -6,9 +6,10 @@
  *   Central Monitor — top center (admin broadcasts)
  *   6 System terminals — arranged symmetrically L/R walls
  *
- * actionType "system"      → SYS-01..05, editable link (admin always;
+ * actionType "system"      → SYS-01..06, editable name+link (admin always;
  *                             SYS-01..03 also editable by level2 user)
- * actionType "level2_admin"→ SYS-06, admin-only: set level2 username
+ *                             SYS-06 additionally has level2-username
+ *                             setter section visible to admin only
  * actionType "central_monitor" → admin broadcast screen
  */
 
@@ -87,12 +88,14 @@ export const ROOM_OBJECTS = [
   },
   {
     id: "sys_06",
-    name: "SYS-06 · สิทธิ์ระดับ 2",
-    description: "ตั้งชื่อผู้ใช้ที่ได้รับสิทธิ์ระดับ 2 (แอดมินเท่านั้น)",
-    icon: "🛡️",
+    name: "SYS-06 · รายงาน",
+    description: "ระบบรายงานและเอกสาร",
+    icon: "📄",
     x: 762, y: 460, width: 130, height: 100,
-    actionType: "level2_admin",
+    actionType: "system",
     actionValue: "",
+    editableByLevel2: false,
+    hasLevel2AdminSection: true, // adds level2-username setter for admin
   },
 
 ];
