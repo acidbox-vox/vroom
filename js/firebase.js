@@ -54,11 +54,15 @@ export async function joinRoom(user) {
     gender:      ap.gender    ?? 'm',
     skinIdx:     ap.skinIdx   ?? 0,
     hairIdx:     ap.hairIdx   ?? 0,
-    shirtIdx:    ap.shirtIdx  ?? 0,
-    hairStyle:   ap.hairStyle ?? 0,
-    hatType:     ap.hatType   ?? 0,
-    itemType:    ap.itemType  ?? 0,
+    topIdx:      ap.topIdx    ?? 0,
+    tieIdx:      ap.tieIdx    ?? 0,
     pantsIdx:    ap.pantsIdx  ?? 0,
+    shoeIdx:     ap.shoeIdx   ?? 0,
+    hairStyle:   ap.hairStyle ?? 0,
+    eyeIdx:      ap.eyeIdx    ?? 0,
+    glasses:     ap.glasses   ?? false,
+    blush:       ap.blush     ?? false,
+    accessory:   ap.accessory ?? 0,
     x:           spawnX,
     y:           spawnY,
     idle:        false,
@@ -215,6 +219,47 @@ export async function loadBoardContent() {
 export function listenBoardContent(onChange) {
   const r = ref(db, `rooms/${ROOM_ID}/board/content`);
   const h = (snap) => onChange(snap.exists() ? (snap.val()?.html ?? null) : null);
+  onValue(r, h);
+  return () => off(r, 'value', h);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SYSTEM LINKS — SYS-01..06, admin/level2 editable
+═══════════════════════════════════════════════════════════════ */
+export async function saveSystemLink(sysId, url) {
+  await set(ref(db, `rooms/${ROOM_ID}/systems/${sysId}`), {
+    url:       String(url || '').slice(0, 500),
+    updatedAt: Date.now(),
+  });
+}
+
+export async function loadSystemLinks() {
+  const snap = await get(ref(db, `rooms/${ROOM_ID}/systems`));
+  return snap.exists() ? snap.val() : {};
+}
+
+export function listenSystemLinks(onChange) {
+  const r = ref(db, `rooms/${ROOM_ID}/systems`);
+  const h = (snap) => onChange(snap.exists() ? snap.val() : {});
+  onValue(r, h);
+  return () => off(r, 'value', h);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LEVEL-2 ADMIN — username stored by SYS-06, admin-only write
+═══════════════════════════════════════════════════════════════ */
+export async function saveLevel2Username(username) {
+  await set(ref(db, `rooms/${ROOM_ID}/level2/username`), String(username || '').slice(0, 20));
+}
+
+export async function loadLevel2Username() {
+  const snap = await get(ref(db, `rooms/${ROOM_ID}/level2/username`));
+  return snap.exists() ? snap.val() : '';
+}
+
+export function listenLevel2Username(onChange) {
+  const r = ref(db, `rooms/${ROOM_ID}/level2/username`);
+  const h = (snap) => onChange(snap.exists() ? snap.val() : '');
   onValue(r, h);
   return () => off(r, 'value', h);
 }

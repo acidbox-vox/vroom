@@ -4,7 +4,12 @@
  *
  * Layout (room interior: x:60–900, y:60–708):
  *   Central Monitor — top center (admin broadcasts)
- *   6 System terminals — arranged symmetrically L/R walls + bottom
+ *   6 System terminals — arranged symmetrically L/R walls
+ *
+ * actionType "system"      → SYS-01..05, editable link (admin always;
+ *                             SYS-01..03 also editable by level2 user)
+ * actionType "level2_admin"→ SYS-06, admin-only: set level2 username
+ * actionType "central_monitor" → admin broadcast screen
  */
 
 export const ROOM_OBJECTS = [
@@ -24,7 +29,7 @@ export const ROOM_OBJECTS = [
   },
 
   // ══════════════════════════════════════════════════════════════
-  // SYS-01  ··  SYS-02  (left wall, top → bottom)
+  // SYS-01 .. 03  (left wall, top → bottom) — editable by admin + level2
   // ══════════════════════════════════════════════════════════════
   {
     id: "sys_01",
@@ -32,8 +37,9 @@ export const ROOM_OBJECTS = [
     description: "ระบบบริหารกำลังพล",
     icon: "👥",
     x: 68, y: 140, width: 130, height: 100,
-    actionType: "url",
-    actionValue: "https://example.com/sys01",
+    actionType: "system",
+    actionValue: "",
+    editableByLevel2: true,
   },
   {
     id: "sys_02",
@@ -41,8 +47,9 @@ export const ROOM_OBJECTS = [
     description: "ระบบบริหารงบประมาณ",
     icon: "💰",
     x: 68, y: 300, width: 130, height: 100,
-    actionType: "url",
-    actionValue: "https://example.com/sys02",
+    actionType: "system",
+    actionValue: "",
+    editableByLevel2: true,
   },
   {
     id: "sys_03",
@@ -50,12 +57,13 @@ export const ROOM_OBJECTS = [
     description: "ระบบ Dashboard & Analytics",
     icon: "📊",
     x: 68, y: 460, width: 130, height: 100,
-    actionType: "url",
-    actionValue: "https://example.com/sys03",
+    actionType: "system",
+    actionValue: "",
+    editableByLevel2: true,
   },
 
   // ══════════════════════════════════════════════════════════════
-  // SYS-04  ··  SYS-06  (right wall, top → bottom)
+  // SYS-04 .. 06  (right wall, top → bottom) — admin only
   // ══════════════════════════════════════════════════════════════
   {
     id: "sys_04",
@@ -63,8 +71,9 @@ export const ROOM_OBJECTS = [
     description: "ระบบแผนงานและโครงการ",
     icon: "📋",
     x: 762, y: 140, width: 130, height: 100,
-    actionType: "url",
-    actionValue: "https://example.com/sys04",
+    actionType: "system",
+    actionValue: "",
+    editableByLevel2: false,
   },
   {
     id: "sys_05",
@@ -72,17 +81,18 @@ export const ROOM_OBJECTS = [
     description: "ระบบติดตามและประเมินผล",
     icon: "🎯",
     x: 762, y: 300, width: 130, height: 100,
-    actionType: "url",
-    actionValue: "https://example.com/sys05",
+    actionType: "system",
+    actionValue: "",
+    editableByLevel2: false,
   },
   {
     id: "sys_06",
-    name: "SYS-06 · รายงาน",
-    description: "ระบบรายงานและเอกสาร",
-    icon: "📄",
+    name: "SYS-06 · สิทธิ์ระดับ 2",
+    description: "ตั้งชื่อผู้ใช้ที่ได้รับสิทธิ์ระดับ 2 (แอดมินเท่านั้น)",
+    icon: "🛡️",
     x: 762, y: 460, width: 130, height: 100,
-    actionType: "url",
-    actionValue: "https://example.com/sys06",
+    actionType: "level2_admin",
+    actionValue: "",
   },
 
 ];

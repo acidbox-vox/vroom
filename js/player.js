@@ -82,7 +82,22 @@ export function randomAppearance(gender) {
 export function packAppearance(_ap) { return 0; }
 
 export function resolveAp(data) {
-  if (data && data.gender) return data;
+  if (data && data.gender) {
+    return {
+      gender:    data.gender,
+      skinIdx:   data.skinIdx   ?? 0,
+      hairIdx:   data.hairIdx   ?? 0,
+      topIdx:    data.topIdx    ?? 0,
+      tieIdx:    data.tieIdx    ?? 0,
+      pantsIdx:  data.pantsIdx  ?? 0,
+      shoeIdx:   data.shoeIdx   ?? 0,
+      hairStyle: data.hairStyle ?? 0,
+      eyeIdx:    data.eyeIdx    ?? 0,
+      glasses:   data.glasses   ?? false,
+      blush:     data.blush     ?? false,
+      accessory: data.accessory ?? 0,
+    };
+  }
   const idx = Number(data?.avatarIndex ?? data ?? 0) % 12;
   return {
     gender: idx >= 6 ? 'f' : 'm',
@@ -148,9 +163,9 @@ function drawPixelChar(ctx, W, H, ap, isLocal, walkFrame) {
   const SWING = 4;
   const LIFT  = 3;
   let rLx=0, rLy=0, lLx=0, lLy=0;
-  let rAy=0, lAy=0; // arm swing
-  if (f===1) { rLx= SWING; rLy=-LIFT; lLx=-SWING; lLy=0; rAy=3; lAy=-3; }
-  if (f===2) { rLx=-SWING; rLy=0;     lLx= SWING; lLy=-LIFT; rAy=-3; lAy=3; }
+  let rAy=0, lAy=0; // arms stay still — legs only animate
+  if (f===1) { rLx= SWING; rLy=-LIFT; lLx=-SWING; lLy=0; }
+  if (f===2) { rLx=-SWING; rLy=0;     lLx= SWING; lLy=-LIFT; }
 
   const by = feet + bob; // base Y for feet
 
@@ -415,6 +430,23 @@ function makeNameTag(scene, name, isLocal) {
   }).setOrigin(0.5,1).setDepth(10);
 }
 
+/* ── Level-2 admin check (set externally by game.js) ── */
+let _isLevel2Username = (_username) => false;
+export function setLevel2Checker(fn) { _isLevel2Username = fn; }
+
+/* ── Level-2 yellow ring aura (simple, no crown) ── */
+function addLevel2FX(scene, container) {
+  const ring = scene.add.graphics().setDepth(4);
+  ring.lineStyle(2, 0xffd700, 0.8);
+  ring.strokeEllipse(0, 14, 40, 11);
+  ring.fillStyle(0xffd700, 0.12);
+  ring.fillEllipse(0, 14, 40, 11);
+  container.add(ring);
+  scene.tweens.add({ targets: ring, alpha: { from: 1, to: 0.35 }, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  scene.tweens.add({ targets: ring, scaleX: { from: 1.0, to: 1.08 }, scaleY: { from: 1.0, to: 1.08 }, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  return ring;
+}
+
 /* ── Admin FX ── */
 function addAdminFX(scene, container) {
   const auraColors = [0x00d4ff,0x0088ff,0x44eeff,0x0055cc];
@@ -493,6 +525,13 @@ export class LocalPlayer {
     this.nameTag=makeNameTag(this.scene,this.username,true);
     this.container.add([this.sprite,this.nameTag]);
     if(isAdmin(this.username)) addAdminFX(this.scene,this.container);
+    this._level2Ring=null;
+    this.refreshLevel2Aura();
+  }
+  refreshLevel2Aura(){
+    const should=_isLevel2Username(this.username) && !isAdmin(this.username);
+    if(should && !this._level2Ring) this._level2Ring=addLevel2FX(this.scene,this.container);
+    if(!should && this._level2Ring){ this._level2Ring.destroy(); this._level2Ring=null; }
   }
   showChat(text){ showChatBubble(this.scene,this.container,text); }
   setClickTarget(wx,wy){ this._targetX=wx; this._targetY=wy; this._clicking=true; }
@@ -558,6 +597,13 @@ export class RemotePlayer {
     this.nameTag=makeNameTag(this.scene,this.username,false);
     this.container.add([this.sprite,this.nameTag]);
     if(isAdmin(this.username)) addAdminFX(this.scene,this.container);
+    this._level2Ring=null;
+    this.refreshLevel2Aura();
+  }
+  refreshLevel2Aura(){
+    const should=_isLevel2Username(this.username) && !isAdmin(this.username);
+    if(should && !this._level2Ring) this._level2Ring=addLevel2FX(this.scene,this.container);
+    if(!should && this._level2Ring){ this._level2Ring.destroy(); this._level2Ring=null; }
   }
   showChat(text){ showChatBubble(this.scene,this.container,text); }
   setTarget(x,y,idle=false){

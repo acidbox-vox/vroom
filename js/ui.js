@@ -2,7 +2,7 @@
  * ui.js — Gender picker + randomize appearance
  */
 import { ROOM_OBJECTS } from './objects.js';
-import { saveBoardContent, loadBoardContent } from './firebase.js';
+import { saveBoardContent, loadBoardContent, saveSystemLink, listenSystemLinks, saveLevel2Username, listenLevel2Username } from './firebase.js';
 import { randomAppearance, drawAvatarToCanvas, resolveAp } from './player.js';
 
 const $ = id => document.getElementById(id);
@@ -236,10 +236,163 @@ export function openObjectModal(obj) {
     return;
   }
 
+  // ── ระบบ SYS-01..06: link ที่แอดมิน/level2 แก้ไขได้ ──
+  if (obj.actionType === 'system') {
+    _openSystem(obj);
+    return;
+  }
+
+  // ── SYS-06: ตั้งชื่อผู้ใช้ level 2 (แอดมินเท่านั้น) ──
+  if (obj.actionType === 'level2_admin') {
+    _openLevel2Admin(obj);
+    return;
+  }
+
   if (obj.actionType==='image') contentModalBody.innerHTML=`<img src="${_ea(obj.actionValue)}" />`;
   else if (obj.actionType==='pdf') contentModalBody.innerHTML=`<iframe src="${_ea(obj.actionValue)}"></iframe>`;
   else contentModalBody.innerHTML=obj.actionValue;
   contentOverlay.classList.remove('hidden'); contentOverlay.classList.add('active');
+}
+
+/* ── Permission helpers ──────────────────────────────────────── */
+let _level2Username = '';
+export function setLevel2Username(name) { _level2Username = String(name || '').trim(); }
+function _isAdminUser() { return _currentUsername === '0910655667'; }
+function _isLevel2User() {
+  return _level2Username !== '' && _currentUsername === _level2Username;
+}
+
+/* ── SYS-01..06 modal: read-only link, editable for admin/level2 ── */
+async function _openSystem(obj) {
+  contentModalBody.innerHTML = `<div style="color:#6b7fa3;padding:20px;text-align:center">⏳ กำลังโหลด...</div>`;
+  contentOverlay.classList.remove('hidden'); contentOverlay.classList.add('active');
+
+  const url = obj.actionValue || '';
+  const canEdit = _isAdminUser() || (obj.editableByLevel2 && _isLevel2User());
+
+  if (canEdit) {
+    contentModalBody.innerHTML = `
+      <div style="margin-bottom:10px">
+        <div style="font-size:11px;color:#22e5ff;margin-bottom:6px">✏️ โหมดแก้ไข Link</div>
+        <input id="sysLinkInput" type="text" value="${_ea(url)}" placeholder="https://..." style="
+          width:100%; box-sizing:border-box; background:#0d1117; border:1.5px solid #22e5ff;
+          border-radius:8px; padding:10px 12px; color:#e8ecf4; font-size:13px;
+          font-family:Sarabun,sans-serif; outline:none;
+        ">
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="sysSaveBtn" style="
+          flex:1; background:#0e3a45; border:1px solid #22e5ff; color:#22e5ff;
+          padding:9px; border-radius:7px; cursor:pointer; font-size:13px;
+          font-family:Sarabun,sans-serif; font-weight:700; transition:.15s
+        ">💾 บันทึก</button>
+        ${url ? `<button id="sysOpenBtn" style="
+          flex:1; background:#1c2535; border:1px solid #3b82f6; color:#60a5fa;
+          padding:9px; border-radius:7px; cursor:pointer; font-size:13px;
+          font-family:Sarabun,sans-serif; transition:.15s
+        ">🔗 เปิดลิงก์</button>` : ''}
+      </div>
+      <div id="sysSaveMsg" style="margin-top:8px;font-size:12px;color:#4ade80;text-align:center;min-height:18px"></div>
+    `;
+
+    $('sysSaveBtn').addEventListener('click', async () => {
+      const btn = $('sysSaveBtn'); const msg = $('sysSaveMsg');
+      const newUrl = $('sysLinkInput').value.trim();
+      btn.textContent = '⏳ กำลังบันทึก...'; btn.disabled = true;
+      try {
+        await saveSystemLink(obj.id, newUrl);
+        obj.actionValue = newUrl;
+        msg.textContent = '✅ บันทึกสำเร็จ!';
+        btn.textContent = '💾 บันทึก'; btn.disabled = false;
+      } catch (err) {
+        msg.style.color = '#ff5555';
+        msg.textContent = '❌ บันทึกไม่สำเร็จ: ' + (err.message || err);
+        btn.textContent = '💾 บันทึก'; btn.disabled = false;
+      }
+    });
+    $('sysOpenBtn')?.addEventListener('click', () => window.open(url, '_blank', 'noopener'));
+
+  } else {
+    // ผู้ใช้ปกติ: กดเข้าลิงก์ทันทีถ้ามี ไม่ก็แจ้งว่ายังไม่ได้ตั้งค่า
+    if (url) {
+      window.open(url, '_blank', 'noopener');
+      _closeModal();
+      return;
+    }
+    contentModalBody.innerHTML = `<div style="color:#6b7fa3;padding:24px;text-align:center;font-size:13px">
+      ⚙️ ระบบนี้ยังไม่ได้ตั้งค่า
+    </div>`;
+  }
+}
+
+/* ── SYS-06 modal: admin-only, set level2 username ───────────── */
+async function _openLevel2Admin(obj) {
+  contentModalBody.innerHTML = `<div style="color:#6b7fa3;padding:20px;text-align:center">⏳ กำลังโหลด...</div>`;
+  contentOverlay.classList.remove('hidden'); contentOverlay.classList.add('active');
+
+  if (!_isAdminUser()) {
+    contentModalBody.innerHTML = `<div style="color:#6b7fa3;padding:24px;text-align:center;font-size:13px">
+      🔒 ระบบนี้สำหรับแอดมินเท่านั้น
+    </div>`;
+    return;
+  }
+
+  contentModalBody.innerHTML = `
+    <div style="margin-bottom:10px">
+      <div style="font-size:11px;color:#ffd700;margin-bottom:6px">🛡️ ตั้งชื่อผู้ใช้สิทธิ์ระดับ 2</div>
+      <input id="lvl2Input" type="text" value="${_ea(_level2Username)}" placeholder="ชื่อผู้ใช้ (username)" style="
+        width:100%; box-sizing:border-box; background:#0d1117; border:1.5px solid #ffd700;
+        border-radius:8px; padding:10px 12px; color:#e8ecf4; font-size:13px;
+        font-family:Sarabun,sans-serif; outline:none;
+      ">
+    </div>
+    <div style="font-size:11px;color:#4a5568;margin-bottom:10px">
+      ผู้ใช้ที่มีชื่อตรงกันจะได้: ออร่าวงแหวนสีเหลืองใต้ตัวละคร และสิทธิ์แก้ไขลิงก์ SYS-01, 02, 03
+    </div>
+    <div style="display:flex;gap:8px">
+      <button id="lvl2SaveBtn" style="
+        flex:1; background:#3a3010; border:1px solid #ffd700; color:#ffd700;
+        padding:9px; border-radius:7px; cursor:pointer; font-size:13px;
+        font-family:Sarabun,sans-serif; font-weight:700; transition:.15s
+      ">💾 บันทึก</button>
+      <button id="lvl2ClearBtn" style="
+        flex:1; background:#1c2535; border:1px solid #3b82f6; color:#60a5fa;
+        padding:9px; border-radius:7px; cursor:pointer; font-size:13px;
+        font-family:Sarabun,sans-serif; transition:.15s
+      ">✕ ล้างสิทธิ์</button>
+    </div>
+    <div id="lvl2SaveMsg" style="margin-top:8px;font-size:12px;color:#4ade80;text-align:center;min-height:18px"></div>
+  `;
+
+  $('lvl2SaveBtn').addEventListener('click', async () => {
+    const btn = $('lvl2SaveBtn'); const msg = $('lvl2SaveMsg');
+    const name = $('lvl2Input').value.trim();
+    btn.textContent = '⏳ กำลังบันทึก...'; btn.disabled = true;
+    try {
+      await saveLevel2Username(name);
+      _level2Username = name;
+      msg.textContent = '✅ บันทึกสำเร็จ!';
+      btn.textContent = '💾 บันทึก'; btn.disabled = false;
+    } catch (err) {
+      msg.style.color = '#ff5555';
+      msg.textContent = '❌ บันทึกไม่สำเร็จ: ' + (err.message || err);
+      btn.textContent = '💾 บันทึก'; btn.disabled = false;
+    }
+  });
+
+  $('lvl2ClearBtn').addEventListener('click', async () => {
+    const msg = $('lvl2SaveMsg');
+    try {
+      await saveLevel2Username('');
+      _level2Username = '';
+      $('lvl2Input').value = '';
+      msg.style.color = '#4ade80';
+      msg.textContent = '✅ ล้างสิทธิ์แล้ว';
+    } catch (err) {
+      msg.style.color = '#ff5555';
+      msg.textContent = '❌ ไม่สำเร็จ: ' + (err.message || err);
+    }
+  });
 }
 
 /* ── Board modal ────────────────────────────────────────────── */

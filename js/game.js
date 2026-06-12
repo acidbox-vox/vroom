@@ -8,14 +8,15 @@ import {
   showTooltip, moveTooltip, hideTooltip,
   openObjectModal, showNotification,
   updateMinimap, drawMinimapBg,
-  clickEffect, setCurrentUsername,
+  clickEffect, setCurrentUsername, setLevel2Username,
 } from './ui.js';
 import { initChat, appendSystemMsg } from './chat.js';
-import { LocalPlayer, RemotePlayer, PLAYER_SPEED, preloadSprites } from './player.js';
+import { LocalPlayer, RemotePlayer, PLAYER_SPEED, preloadSprites, setLevel2Checker } from './player.js';
 import { ROOM_OBJECTS } from './objects.js';
 import {
   SESSION_ID, joinRoom, isNameTaken,
   emitMove, listenPlayers, startHeartbeat, listenBoardContent,
+  listenSystemLinks, listenLevel2Username,
 } from './firebase.js';
 
 /* ── keep ref to localPlayer for chat bubble ────────────────── */
@@ -131,8 +132,32 @@ function _bootGame(user, spawnX, spawnY) {
 
     _bindFirebase(scene);
     _bindCentralMonitor(scene);
+    _bindSystemLinks();
+    _bindLevel2Username();
     initChat(user.username, () => localPlayer, () => remotePlayers);
     drawMinimapBg(WORLD_W, WORLD_H);
+  }
+
+  /* ── SYSTEM LINKS LIVE SYNC (SYS-01..05) ─────────────────── */
+  function _bindSystemLinks() {
+    listenSystemLinks((data) => {
+      ROOM_OBJECTS.forEach(obj => {
+        if (obj.actionType === 'system' && data[obj.id]) {
+          obj.actionValue = data[obj.id].url || '';
+        }
+      });
+    });
+  }
+
+  /* ── LEVEL-2 USERNAME LIVE SYNC ───────────────────────────── */
+  function _bindLevel2Username() {
+    listenLevel2Username((name) => {
+      setLevel2Username(name);
+      setLevel2Checker((username) => name !== '' && username === name);
+      // refresh aura on existing players
+      if (localPlayer) localPlayer.refreshLevel2Aura?.();
+      Object.values(remotePlayers).forEach(rp => rp.refreshLevel2Aura?.());
+    });
   }
 
   /* ── CENTRAL MONITOR LIVE SYNC ────────────────────────────── */
@@ -188,8 +213,9 @@ function _bootGame(user, spawnX, spawnY) {
             p.x ?? WORLD_W / 2, p.y ?? WORLD_H / 2,
             p.username,
             { gender:p.gender||'m', skinIdx:p.skinIdx||0, hairIdx:p.hairIdx||0,
-              shirtIdx:p.shirtIdx||0, hairStyle:p.hairStyle||0,
-              hatType:p.hatType||0, itemType:p.itemType||0, pantsIdx:p.pantsIdx||0 },
+              topIdx:p.topIdx||0, tieIdx:p.tieIdx||0, pantsIdx:p.pantsIdx||0,
+              shoeIdx:p.shoeIdx||0, hairStyle:p.hairStyle||0, eyeIdx:p.eyeIdx||0,
+              glasses:p.glasses||false, blush:p.blush||false, accessory:p.accessory||0 },
           );
           if (!isFirstSnapshot) {
             showNotification(`${maskName(p.username)} เข้าห้อง`, 'join');

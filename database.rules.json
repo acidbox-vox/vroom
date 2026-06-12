@@ -8,10 +8,22 @@
             ".write": true,
             ".validate": "newData.hasChildren(['username','x','y'])",
 
-            "username":    { ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 20" },
-            "avatarIndex": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 20" },
-            "x":           { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1280" },
-            "y":           { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 960" },
+            "username":    { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 20" },
+            "avatarIndex": { ".validate": "newData.isNumber()" },
+            "gender":      { ".validate": "newData.isString()" },
+            "skinIdx":     { ".validate": "newData.isNumber()" },
+            "hairIdx":     { ".validate": "newData.isNumber()" },
+            "topIdx":      { ".validate": "newData.isNumber()" },
+            "tieIdx":      { ".validate": "newData.isNumber()" },
+            "pantsIdx":    { ".validate": "newData.isNumber()" },
+            "shoeIdx":     { ".validate": "newData.isNumber()" },
+            "hairStyle":   { ".validate": "newData.isNumber()" },
+            "eyeIdx":      { ".validate": "newData.isNumber()" },
+            "glasses":     { ".validate": "newData.isBoolean()" },
+            "blush":       { ".validate": "newData.isBoolean()" },
+            "accessory":   { ".validate": "newData.isNumber()" },
+            "x":           { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 960" },
+            "y":           { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 768" },
             "idle":        { ".validate": "newData.isBoolean()" },
             "joinedAt":    { ".validate": "newData.isNumber()" },
             "id":          { ".validate": "newData.isString()" }
@@ -36,6 +48,27 @@
             "username": { ".validate": "newData.isString()" },
             "ts":       { ".validate": "newData.isNumber()" }
           }
+        },
+        "board": {
+          ".read":  true,
+          ".write": true,
+          "content": {
+            "html":      { ".validate": "newData.isString() && newData.val().length <= 2000" },
+            "updatedAt": { ".validate": "newData.isNumber()" }
+          }
+        },
+        "systems": {
+          ".read":  true,
+          ".write": true,
+          "$sysId": {
+            "url":       { ".validate": "newData.isString() && newData.val().length <= 500" },
+            "updatedAt": { ".validate": "newData.isNumber()" }
+          }
+        },
+        "level2": {
+          ".read":  true,
+          ".write": true,
+          "username": { ".validate": "newData.isString() && newData.val().length <= 20" }
         }
       }
     }
