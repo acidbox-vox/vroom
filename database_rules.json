@@ -3,8 +3,8 @@
     "rooms": {
       "$roomId": {
         "players": {
+          ".read": true,
           "$sessionId": {
-            ".read":  true,
             ".write": true,
             ".validate": "newData.hasChildren(['username','x','y'])",
 
