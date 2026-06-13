@@ -73,6 +73,12 @@
             ".validate": "newData.hasChildren() || !newData.exists()",
             "$index": { ".validate": "newData.isString() && newData.val().length <= 20" }
           }
+        },
+        "announcement": {
+          ".read":  true,
+          ".write": true,
+          "text":      { ".validate": "newData.isString() && newData.val().length <= 300" },
+          "updatedAt": { ".validate": "newData.isNumber()" }
         }
       }
     }

@@ -279,6 +279,28 @@ export function listenLevel2Usernames(onChange) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   ANNOUNCEMENT TICKER — central monitor marquee, admin-only write
+═══════════════════════════════════════════════════════════════ */
+export async function saveAnnouncement(text) {
+  await set(ref(db, `rooms/${ROOM_ID}/announcement`), {
+    text:      String(text || '').slice(0, 300),
+    updatedAt: Date.now(),
+  });
+}
+
+export async function loadAnnouncement() {
+  const snap = await get(ref(db, `rooms/${ROOM_ID}/announcement`));
+  return snap.exists() ? (snap.val()?.text ?? '') : '';
+}
+
+export function listenAnnouncement(onChange) {
+  const r = ref(db, `rooms/${ROOM_ID}/announcement`);
+  const h = (snap) => onChange(snap.exists() ? (snap.val()?.text ?? '') : '');
+  onValue(r, h);
+  return () => off(r, 'value', h);
+}
+
+/* ═══════════════════════════════════════════════════════════════
    HEARTBEAT + CLEANUP
 ═══════════════════════════════════════════════════════════════ */
 export function startHeartbeat() {

@@ -16,7 +16,7 @@ import { ROOM_OBJECTS } from './objects.js';
 import {
   SESSION_ID, joinRoom, isNameTaken,
   emitMove, listenPlayers, startHeartbeat, listenBoardContent,
-  listenSystemLinks, listenLevel2Usernames,
+  listenSystemLinks, listenLevel2Usernames, listenAnnouncement,
 } from './firebase.js';
 
 /* ── keep ref to localPlayer for chat bubble ────────────────── */
@@ -191,6 +191,18 @@ function _bootGame(user, spawnX, spawnY) {
       const plain = String(html).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
       txt.setText(plain.length > 0 ? plain : 'ระบบพร้อมใช้งาน — ไม่มีข้อความ');
     });
+
+    listenAnnouncement((text) => {
+      const t = scene._tickerText;
+      if (!t) return;
+      const clean = String(text || '').trim();
+      scene._tickerMessage = clean;
+      if (!clean) { t.setVisible(false); return; }
+      // pad with separators so the loop feels continuous
+      t.setText(`${clean}　★　${clean}　★　`);
+      t.x = scene._tickerStartX;
+      t.setVisible(true);
+    });
   }
 
   /* ── UPDATE ─────────────────────────────────────────────────── */
@@ -210,6 +222,25 @@ function _bootGame(user, spawnX, spawnY) {
 
     Object.values(remotePlayers).forEach(rp => rp.update(delta));
     updateMinimap(localPlayer.x, localPlayer.y, WORLD_W, WORLD_H);
+
+    // ── Marquee ticker scroll (central monitor announcement) ──
+    _updateTicker(this, delta);
+  }
+
+  const TICKER_SPEED = 60; // px/sec
+  function _updateTicker(scene, delta) {
+    const t = scene._tickerText;
+    if (!t) return;
+    if (!scene._tickerMessage) {
+      t.setVisible(false);
+      return;
+    }
+    t.setVisible(true);
+    t.x -= TICKER_SPEED * (delta / 1000);
+    // loop: once fully scrolled past the left edge, restart from the right edge
+    if (t.x + t.width < scene._tickerClipX) {
+      t.x = scene._tickerStartX;
+    }
   }
 
   /* ── FIREBASE LISTENER ─────────────────────────────────────── */
@@ -334,8 +365,8 @@ function _drawFloor(scene) {
     g.lineBetween(cx, cy, cx, cy + brk*sy);
   });
 
-  // ── Center floor emblem — large glowing ring ────────────
-  const ccx = WORLD_W/2, ccy = RY + RH*0.62;
+  // ── Center floor emblem — large glowing ring (below monitor, above terminals) ──
+  const ccx = WORLD_W/2, ccy = 296;
   for (let r = 70; r >= 30; r -= 14) {
     g.lineStyle(1, 0x22e5ff, 0.10 + (70-r)/70*0.10);
     g.strokeCircle(ccx, ccy, r);
@@ -347,19 +378,19 @@ function _drawFloor(scene) {
   g.lineBetween(ccx-90, ccy, ccx+90, ccy);
   g.lineBetween(ccx, ccy-90, ccx, ccy+90);
 
-  // ── Side wall accent strips (under each terminal bank) ──
+  // ── Terminal bank backdrops (left + right columns) ──────
   g.fillStyle(0x081420, 0.8);
-  g.fillRect(RX, 120, 170, 460);          // left bank backdrop
-  g.fillRect(RX+RW-170, 120, 170, 460);   // right bank backdrop
+  g.fillRect(48, 312, 296, 510);          // left column backdrop
+  g.fillRect(WORLD_W - 48 - 296, 312, 296, 510); // right column backdrop
   g.lineStyle(1, 0x18d0ff, 0.25);
-  g.strokeRect(RX, 120, 170, 460);
-  g.strokeRect(RX+RW-170, 120, 170, 460);
+  g.strokeRect(48, 312, 296, 510);
+  g.strokeRect(WORLD_W - 48 - 296, 312, 296, 510);
 
-  // ── Floor light strips leading to central monitor ───────
+  // ── Floor light strip leading to central monitor ────────
   g.fillStyle(0x0a2a35, 0.5);
-  g.fillRect(WORLD_W/2 - 4, RY+4, 8, 170);
+  g.fillRect(WORLD_W/2 - 4, RY+4, 8, 210);
   g.fillStyle(0x22e5ff, 0.25);
-  g.fillRect(WORLD_W/2 - 1, RY+4, 2, 170);
+  g.fillRect(WORLD_W/2 - 1, RY+4, 2, 210);
 
   // ── ROOM label ───────────────────────────────────────────
   scene.add.text(WORLD_W/2, RY + 14, '◤ COMMAND CENTER ◢', {
@@ -481,8 +512,11 @@ const OBJ_DRAW = {
 
   /* ── Central Monitor — large Tron broadcast screen ──────── */
   central_monitor(g, scene, obj) {
-    const cx = obj.x + obj.width/2, cy = obj.y + obj.height/2;
+    const cx = obj.x + obj.width/2;
     const w = obj.width, h = obj.height;
+    const tickerH = 28;          // bottom marquee strip height
+    const screenH = h - tickerH; // main message area height
+    const screenCy = obj.y + screenH/2;
 
     // outer glow frame
     g.fillStyle(0x06141c, 1);
@@ -495,18 +529,18 @@ const OBJ_DRAW = {
     g.lineBetween(obj.x + 14, obj.y + h + 6, obj.x + 14, obj.y + h + 30);
     g.lineBetween(obj.x + w - 14, obj.y + h + 6, obj.x + w - 14, obj.y + h + 30);
 
-    // screen body
+    // screen body (main message area)
     g.fillStyle(0x020a10, 1);
-    g.fillRect(obj.x, obj.y, w, h);
+    g.fillRect(obj.x, obj.y, w, screenH);
 
-    // animated scan glow stored on object for update loop
+    // animated scan glow
     const glowAlpha = 0.10 + 0.06 * Math.sin(scene.time.now / 600);
     g.fillStyle(0x22e5ff, glowAlpha);
-    g.fillRect(obj.x, obj.y, w, h);
+    g.fillRect(obj.x, obj.y, w, screenH);
 
     // scanlines
     g.lineStyle(1, 0x0e3a4a, 0.5);
-    for (let yy = obj.y + 4; yy < obj.y + h; yy += 5) g.lineBetween(obj.x, yy, obj.x + w, yy);
+    for (let yy = obj.y + 4; yy < obj.y + screenH; yy += 5) g.lineBetween(obj.x, yy, obj.x + w, yy);
 
     // header bar
     g.fillStyle(0x0a2a35, 1);
@@ -519,14 +553,52 @@ const OBJ_DRAW = {
       color: '#4af0ff', letterSpacing: 2,
     }).setOrigin(0.5, 0.5).setDepth(3);
 
-    // message text — dynamic, updated externally via setMonitorMessage()
-    const msgText = scene.add.text(cx, cy + 8, 'ระบบพร้อมใช้งาน — ไม่มีข้อความ', {
+    // message text — dynamic, updated externally
+    const msgText = scene.add.text(cx, screenCy + 8, 'ระบบพร้อมใช้งาน — ไม่มีข้อความ', {
       fontSize: '15px', fontFamily: 'Sarabun, sans-serif',
       color: '#9beeff', align: 'center', wordWrap: { width: w - 24 },
     }).setOrigin(0.5, 0.5).setDepth(3);
     scene._centralMonitorText = msgText;
 
-    // corner brackets
+    // ── Bottom marquee/ticker strip (admin announcement, Tron style) ──
+    const tY = obj.y + screenH;
+    g.fillStyle(0x05161e, 1);
+    g.fillRect(obj.x, tY, w, tickerH);
+    g.lineStyle(1, 0xffb000, 0.7);
+    g.lineBetween(obj.x, tY, obj.x + w, tY);
+    g.fillStyle(0xffb000, 0.06);
+    g.fillRect(obj.x, tY, w, tickerH);
+
+    // ticker label chip "LIVE"
+    g.fillStyle(0xffb000, 0.18);
+    g.fillRoundedRect(obj.x + 4, tY + 4, 46, tickerH - 8, 3);
+    g.lineStyle(1, 0xffb000, 0.8);
+    g.strokeRoundedRect(obj.x + 4, tY + 4, 46, tickerH - 8, 3);
+    scene.add.text(obj.x + 27, tY + tickerH/2, 'LIVE', {
+      fontSize: '11px', fontFamily: 'Sarabun, sans-serif',
+      color: '#ffb000', letterSpacing: 2, fontStyle: 'bold',
+    }).setOrigin(0.5, 0.5).setDepth(3);
+    const liveDot = scene.add.circle(obj.x + 12, tY + tickerH/2, 3, 0xffb000, 1).setDepth(4);
+    scene.tweens.add({ targets: liveDot, alpha: { from:1, to:0.2 }, duration: 700, yoyo:true, repeat:-1 });
+
+    // ticker text container — clipped to strip area
+    const tickerClipX = obj.x + 58;
+    const tickerClipW = w - 58 - 6;
+    const tickerMask = scene.add.graphics().setVisible(false);
+    tickerMask.fillRect(tickerClipX, tY, tickerClipW, tickerH);
+    const maskGeom = tickerMask.createGeometryMask();
+
+    const tickerText = scene.add.text(tickerClipX + tickerClipW, tY + tickerH/2, '', {
+      fontSize: '13px', fontFamily: 'Sarabun, sans-serif',
+      color: '#ffd166', letterSpacing: 1,
+    }).setOrigin(0, 0.5).setDepth(3).setMask(maskGeom);
+
+    scene._tickerText  = tickerText;
+    scene._tickerClipX = tickerClipX;
+    scene._tickerClipW = tickerClipW;
+    scene._tickerStartX = tickerClipX + tickerClipW;
+
+    // corner brackets (around full panel)
     const b = 12;
     g.lineStyle(2, 0x4af0ff, 1);
     [[obj.x,obj.y,1,1],[obj.x+w,obj.y,-1,1],[obj.x,obj.y+h,1,-1],[obj.x+w,obj.y+h,-1,-1]].forEach(([cx2,cy2,sx,sy])=>{

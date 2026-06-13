@@ -2,7 +2,7 @@
  * ui.js — Gender picker + randomize appearance
  */
 import { ROOM_OBJECTS } from './objects.js';
-import { saveBoardContent, loadBoardContent, saveSystemLink, listenSystemLinks, addLevel2Username, removeLevel2Username, listenLevel2Usernames } from './firebase.js';
+import { saveBoardContent, loadBoardContent, saveSystemLink, listenSystemLinks, addLevel2Username, removeLevel2Username, listenLevel2Usernames, saveAnnouncement, loadAnnouncement } from './firebase.js';
 import { randomAppearance, drawAvatarToCanvas, resolveAp } from './player.js';
 
 const $ = id => document.getElementById(id);
@@ -269,6 +269,34 @@ async function _openSystem(obj) {
   const canEdit = _isAdminUser() || (obj.editableByLevel2 && _isLevel2User());
 
   if (canEdit) {
+    const announcement = (obj.hasLevel2AdminSection && _isAdminUser()) ? await loadAnnouncement().catch(()=>'') : '';
+    const announceSection = (obj.hasLevel2AdminSection && _isAdminUser()) ? `
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid #1e2535">
+        <div style="font-size:11px;color:#ffb000;margin-bottom:6px">📢 ป้ายไฟประกาศ (วิ่งบน Central Monitor)</div>
+        <input id="announceInput" type="text" value="${_ea(announcement)}" placeholder="พิมพ์ข้อความประกาศ..." maxlength="300" style="
+          width:100%; box-sizing:border-box; background:#0d1117; border:1.5px solid #ffb000;
+          border-radius:8px; padding:10px 12px; color:#e8ecf4; font-size:13px;
+          font-family:Sarabun,sans-serif; outline:none; margin-bottom:8px;
+        ">
+        <div style="display:flex;gap:8px">
+          <button id="announceSaveBtn" style="
+            flex:1; background:#3a2a08; border:1px solid #ffb000; color:#ffb000;
+            padding:9px; border-radius:7px; cursor:pointer; font-size:13px;
+            font-family:Sarabun,sans-serif; font-weight:700; transition:.15s
+          ">💾 บันทึก & แสดง</button>
+          <button id="announceClearBtn" style="
+            flex:1; background:#1c2535; border:1px solid #3b82f6; color:#60a5fa;
+            padding:9px; border-radius:7px; cursor:pointer; font-size:13px;
+            font-family:Sarabun,sans-serif; transition:.15s
+          ">✕ ล้างป้ายไฟ</button>
+        </div>
+        <div style="font-size:11px;color:#4a5568;margin-top:6px">
+          ข้อความจะวิ่งวนซ้ำที่แถบด้านล่างของ Central Monitor ตลอดเวลา จนกว่าจะล้างหรือเปลี่ยน
+        </div>
+        <div id="announceSaveMsg" style="margin-top:6px;font-size:12px;color:#4ade80;text-align:center;min-height:18px"></div>
+      </div>
+    ` : '';
+
     const level2Section = (obj.hasLevel2AdminSection && _isAdminUser()) ? `
       <div style="margin-top:14px;padding-top:12px;border-top:1px solid #1e2535">
         <div style="font-size:11px;color:#ffd700;margin-bottom:6px">🛡️ ผู้ใช้สิทธิ์ระดับ 2</div>
@@ -332,6 +360,7 @@ async function _openSystem(obj) {
       </div>
       <div id="sysSaveMsg" style="margin-top:8px;font-size:12px;color:#4ade80;text-align:center;min-height:18px"></div>
       ${level2Section}
+      ${announceSection}
     `;
 
     $('sysSaveBtn').addEventListener('click', async () => {
@@ -409,6 +438,34 @@ async function _openSystem(obj) {
               ">ลบ</button>
             </div>`).join('');
       }
+
+      // ── Announcement ticker save/clear ──
+      $('announceSaveBtn').addEventListener('click', async () => {
+        const btn = $('announceSaveBtn'); const msg = $('announceSaveMsg');
+        const text = $('announceInput').value.trim();
+        btn.textContent = '⏳ กำลังบันทึก...'; btn.disabled = true;
+        try {
+          await saveAnnouncement(text);
+          msg.style.color = '#4ade80';
+          msg.textContent = text ? '✅ บันทึกแล้ว — ป้ายไฟกำลังวิ่ง' : '✅ ล้างป้ายไฟแล้ว';
+        } catch (err) {
+          msg.style.color = '#ff5555';
+          msg.textContent = '❌ ไม่สำเร็จ: ' + (err.message || err);
+        }
+        btn.textContent = '💾 บันทึก & แสดง'; btn.disabled = false;
+      });
+      $('announceClearBtn').addEventListener('click', async () => {
+        const msg = $('announceSaveMsg');
+        try {
+          await saveAnnouncement('');
+          $('announceInput').value = '';
+          msg.style.color = '#4ade80';
+          msg.textContent = '✅ ล้างป้ายไฟแล้ว';
+        } catch (err) {
+          msg.style.color = '#ff5555';
+          msg.textContent = '❌ ไม่สำเร็จ: ' + (err.message || err);
+        }
+      });
     }
 
   } else {

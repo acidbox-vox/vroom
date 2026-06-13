@@ -192,7 +192,7 @@ html, body {
 /* ══════════════════════════════════════════════════════════════
    APP LAYOUT
 ══════════════════════════════════════════════════════════════ */
-#app { height: 100vh; display: flex; flex-direction: column; }
+#app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
 #app.hidden { display: none; }
 
 /* Header */
@@ -510,7 +510,7 @@ html, body {
   :root { --header-h: 42px; }
   .header-title { display: none; }
   #minimap { display: none; }
-  .panel-header { padding: 6px 10px; font-size: 10px; }
+  .panel-header { padding: 4px 8px; font-size: 10px; }
 }
 
 /* Shared mobile sidebar reset */
@@ -521,37 +521,40 @@ html, body {
   /* User list becomes a small avatar+name grid */
   #userList {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
-    gap: 4px;
-    padding: 6px;
+    grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+    gap: 2px;
+    padding: 4px;
     overflow-y: auto;
   }
   #userList li {
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    gap: 2px;
-    padding: 4px 2px;
-    font-size: 10px;
+    gap: 1px;
+    padding: 2px 1px;
+    font-size: 9px;
     text-align: center;
     border-radius: var(--radius-sm);
   }
-  .user-avatar-sm { width: 22px; height: 30px; }
+  .user-avatar-sm { width: 18px; height: 24px; }
   .user-name {
     white-space: normal; overflow: visible; text-overflow: clip;
-    line-height: 1.2; max-width: 100%;
+    line-height: 1.15; max-width: 100%;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
     overflow: hidden;
   }
   .user-status-dot { display: none; }
 
   /* Chat panel: always reserve space for input */
-  #chatMessages { padding: 6px 8px; gap: 6px; }
-  .chat-text { font-size: 12.5px; }
-  #emojiBar { padding: 2px 8px 6px; }
-  .emoji-btn { font-size: 16px; }
-  #chatInputArea { padding: 6px 8px; }
-  #chatInput { font-size: 14px; padding: 8px 10px; } /* 14px avoids iOS zoom-on-focus */
+  #chatMessages { padding: 4px 8px; gap: 4px; }
+  .chat-text { font-size: 12px; }
+  .chat-sender { font-size: 11px; }
+  .chat-time { font-size: 9px; }
+  #typingIndicator { padding: 2px 8px; font-size: 10px; }
+  #emojiBar { padding: 2px 6px 4px; gap: 2px; }
+  .emoji-btn { font-size: 15px; padding: 1px 3px; }
+  #chatInputArea { padding: 4px 8px; }
+  #chatInput { font-size: 14px; padding: 7px 10px; } /* 14px avoids iOS zoom-on-focus */
 }
 
 /* ── PORTRAIT phones/tablets ─────────────────────────────────── */
@@ -560,18 +563,18 @@ html, body {
   #gameWrapper { flex: 1 1 auto; min-height: 0; }
   #sidebar {
     width: 100%;
-    flex: 0 0 36vh;
+    flex: 0 0 26vh;
     flex-direction: row;
     border-left: none; border-top: 1px solid var(--border);
     overflow: hidden;
   }
   #usersPanel {
-    width: 38%; flex-shrink: 0;
+    width: 30%; flex-shrink: 0;
     max-height: none;
     border-right: 1px solid var(--border); border-bottom: none;
     display: flex; flex-direction: column;
   }
-  #userList { flex: 1; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); }
+  #userList { flex: 1; grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); }
   #chatPanel { flex: 1; min-width: 0; border-bottom: none; }
 }
 
@@ -603,8 +606,8 @@ html, body {
 @media (orientation: portrait) and (max-width: 480px) {
   .login-modal { padding: 24px 20px 20px; }
   .avatar-grid { grid-template-columns: repeat(4, 1fr); }
-  #sidebar { flex: 0 0 40vh; }
-  #userList { grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); }
+  #sidebar { flex: 0 0 28vh; }
+  #userList { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); }
 }
 
 /* ── Very small landscape (compact phones rotated) ───────────── */
