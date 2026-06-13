@@ -287,8 +287,14 @@ html, body {
   transition: var(--transition);
 }
 #userList li:hover { background: var(--bg-hover); }
-.user-avatar-sm { font-size: 18px; line-height: 1; }
-.user-name { flex: 1; }
+.user-avatar-sm {
+  width: 24px; height: 32px;
+  object-fit: contain;
+}
+.user-name {
+  flex: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .user-status-dot {
   width: 6px; height: 6px; border-radius: 50%;
   background: var(--accent);
@@ -304,7 +310,6 @@ html, body {
   padding: 10px 12px;
   display: flex; flex-direction: column; gap: 8px;
   min-height: 0;
-  max-height: calc(100vh - var(--header-h) - 220px - 80px - 100px);
 }
 .chat-msg {
   display: flex; flex-direction: column; gap: 2px;
@@ -495,41 +500,84 @@ html, body {
 /* ═══════════════════════════════════════════════════════════════
    RESPONSIVE — orientation-based (mobile)
    - PORTRAIT (tall): game on top, sidebar below split into
-     users (left, narrow) + chat (right, wide)
-   - LANDSCAPE (wide, short): game left, sidebar right as a
-     slim vertical column with users above chat
+     users (left, grid of small avatars+names) + chat (right)
+   - LANDSCAPE (wide, short): game left, sidebar right —
+     users on top (horizontal scroll row), chat below
 ═══════════════════════════════════════════════════════════════ */
 
 /* General mobile tweak (any orientation, smaller screens) */
 @media (max-width: 900px), (max-height: 500px) {
-  :root { --header-h: 44px; }
+  :root { --header-h: 42px; }
   .header-title { display: none; }
   #minimap { display: none; }
+  .panel-header { padding: 6px 10px; font-size: 10px; }
+}
+
+/* Shared mobile sidebar reset */
+@media (max-width: 900px), (max-height: 500px) {
+  #sidebar { background: var(--bg-surface); }
+  .panel { border-bottom: none; }
+
+  /* User list becomes a small avatar+name grid */
+  #userList {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+    gap: 4px;
+    padding: 6px;
+    overflow-y: auto;
+  }
+  #userList li {
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 2px;
+    padding: 4px 2px;
+    font-size: 10px;
+    text-align: center;
+    border-radius: var(--radius-sm);
+  }
+  .user-avatar-sm { width: 22px; height: 30px; }
+  .user-name {
+    white-space: normal; overflow: visible; text-overflow: clip;
+    line-height: 1.2; max-width: 100%;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .user-status-dot { display: none; }
+
+  /* Chat panel: always reserve space for input */
+  #chatMessages { padding: 6px 8px; gap: 6px; }
+  .chat-text { font-size: 12.5px; }
+  #emojiBar { padding: 2px 8px 6px; }
+  .emoji-btn { font-size: 16px; }
+  #chatInputArea { padding: 6px 8px; }
+  #chatInput { font-size: 14px; padding: 8px 10px; } /* 14px avoids iOS zoom-on-focus */
 }
 
 /* ── PORTRAIT phones/tablets ─────────────────────────────────── */
 @media (orientation: portrait) and (max-width: 900px) {
-  :root { --sidebar-w: 100%; }
   #mainLayout { flex-direction: column; }
   #gameWrapper { flex: 1 1 auto; min-height: 0; }
   #sidebar {
     width: 100%;
-    flex: 0 0 auto;
+    flex: 0 0 36vh;
     flex-direction: row;
     border-left: none; border-top: 1px solid var(--border);
-    height: 38vh; max-height: 38vh;
+    overflow: hidden;
   }
   #usersPanel {
-    width: 110px; flex-shrink: 0;
+    width: 38%; flex-shrink: 0;
+    max-height: none;
     border-right: 1px solid var(--border); border-bottom: none;
+    display: flex; flex-direction: column;
   }
+  #userList { flex: 1; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); }
   #chatPanel { flex: 1; min-width: 0; border-bottom: none; }
-  #chatMessages { max-height: none; }
 }
 
 /* ── LANDSCAPE phones ─────────────────────────────────────────── */
 @media (orientation: landscape) and (max-height: 560px) {
-  :root { --sidebar-w: 190px; }
+  :root { --sidebar-w: 210px; }
   #mainLayout { flex-direction: row; }
   #gameWrapper { flex: 1 1 auto; min-width: 0; }
   #sidebar {
@@ -538,29 +586,33 @@ html, body {
     flex-direction: column;
     border-left: 1px solid var(--border); border-top: none;
     height: 100%; max-height: none;
+    overflow: hidden;
   }
   #usersPanel {
     width: 100%; flex-shrink: 0;
-    max-height: 38%;
+    flex: 0 0 34%;
+    max-height: none;
     border-right: none; border-bottom: 1px solid var(--border);
+    display: flex; flex-direction: column;
   }
+  #userList { flex: 1; grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); }
   #chatPanel { flex: 1; min-height: 0; border-bottom: none; }
-  #chatMessages { max-height: none; }
 }
 
 /* ── Very small portrait (compact phones) ────────────────────── */
 @media (orientation: portrait) and (max-width: 480px) {
   .login-modal { padding: 24px 20px 20px; }
   .avatar-grid { grid-template-columns: repeat(4, 1fr); }
-  #sidebar { height: 42vh; max-height: 42vh; }
-  #usersPanel { width: 90px; }
+  #sidebar { flex: 0 0 40vh; }
+  #userList { grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); }
 }
 
 /* ── Very small landscape (compact phones rotated) ───────────── */
 @media (orientation: landscape) and (max-height: 400px) {
-  :root { --sidebar-w: 160px; }
-  #usersPanel { max-height: 34%; }
-  .user-avatar-sm { width: 20px !important; height: 26px !important; }
+  :root { --sidebar-w: 170px; }
+  #userList { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); }
+  .user-avatar-sm { width: 18px; height: 24px; }
+  .user-name { font-size: 9px; }
 }
 
 /* ── Spinner (login button) ─────────────────────────────────── */

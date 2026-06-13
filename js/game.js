@@ -363,7 +363,7 @@ function _drawFloor(scene) {
 
   // ── ROOM label ───────────────────────────────────────────
   scene.add.text(WORLD_W/2, RY + 14, '◤ COMMAND CENTER ◢', {
-    fontSize: '13px', fontFamily: 'Sarabun, sans-serif',
+    fontSize: '16px', fontFamily: 'Sarabun, sans-serif',
     color: '#4af0ff', stroke: '#000810', strokeThickness: 4,
     letterSpacing: 4,
   }).setOrigin(0.5, 0).setDepth(1).setAlpha(0.9);
@@ -399,10 +399,10 @@ function _drawObjects(scene) {
     // name label under object
     const cx = obj.x + obj.width / 2;
     obj._labelText = scene.add.text(cx, obj.y + obj.height + 6, obj.displayName || obj.name, {
-      fontSize: '9px', fontFamily: 'Sarabun, sans-serif',
-      color: '#8899bb', align: 'center',
-      stroke: '#0a0e17', strokeThickness: 3,
-      wordWrap: { width: obj.width + 16 },
+      fontSize: '13px', fontFamily: 'Sarabun, sans-serif',
+      color: '#cdd6f0', align: 'center',
+      stroke: '#0a0e17', strokeThickness: 4,
+      wordWrap: { width: obj.width + 40 },
     }).setOrigin(0.5, 0).setDepth(3);
 
     // pulsing active dot
@@ -515,13 +515,13 @@ const OBJ_DRAW = {
     g.lineBetween(obj.x, obj.y + 18, obj.x + w, obj.y + 18);
 
     scene.add.text(cx, obj.y + 9, '◤ COMMAND BROADCAST ◢', {
-      fontSize: '10px', fontFamily: 'Sarabun, sans-serif',
+      fontSize: '13px', fontFamily: 'Sarabun, sans-serif',
       color: '#4af0ff', letterSpacing: 2,
     }).setOrigin(0.5, 0.5).setDepth(3);
 
     // message text — dynamic, updated externally via setMonitorMessage()
     const msgText = scene.add.text(cx, cy + 8, 'ระบบพร้อมใช้งาน — ไม่มีข้อความ', {
-      fontSize: '12px', fontFamily: 'Sarabun, sans-serif',
+      fontSize: '15px', fontFamily: 'Sarabun, sans-serif',
       color: '#9beeff', align: 'center', wordWrap: { width: w - 24 },
     }).setOrigin(0.5, 0.5).setDepth(3);
     scene._centralMonitorText = msgText;
@@ -586,7 +586,7 @@ function _drawTronTerminal(g, scene, obj, glow, code) {
   g.strokeRoundedRect(obj.x + 3, obj.y + 3, w - 6, bodyH - 6, 3);
 
   // screen area
-  const sx = obj.x + 6, sy = obj.y + 16, sw = w - 12, sh = bodyH - 28;
+  const sx = obj.x + 6, sy = obj.y + 22, sw = w - 12, sh = bodyH - 34;
   g.fillStyle(0x020608, 1);
   g.fillRect(sx, sy, sw, sh);
   const flicker = 0.08 + 0.05 * Math.sin(scene.time.now / 500 + obj.x);
@@ -601,14 +601,14 @@ function _drawTronTerminal(g, scene, obj, glow, code) {
 
   // top header strip
   g.fillStyle(glow, 0.18);
-  g.fillRect(obj.x + 3, obj.y + 3, w - 6, 10);
+  g.fillRect(obj.x + 3, obj.y + 3, w - 6, 16);
   g.lineStyle(1, glow, 0.7);
-  g.lineBetween(obj.x + 3, obj.y + 13, obj.x + w - 3, obj.y + 13);
+  g.lineBetween(obj.x + 3, obj.y + 19, obj.x + w - 3, obj.y + 19);
 
   // code label
   if (code) {
-    scene.add.text(cx, obj.y + 8, `SYS-${code}`, {
-      fontSize: '9px', fontFamily: 'Sarabun, sans-serif',
+    scene.add.text(cx, obj.y + 11, `SYS-${code}`, {
+      fontSize: '13px', fontFamily: 'Sarabun, sans-serif',
       color: glowHex, letterSpacing: 2,
     }).setOrigin(0.5, 0.5).setDepth(3);
   }
