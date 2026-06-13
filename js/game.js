@@ -39,7 +39,13 @@ initLogin(
       _bootGame(user, me.x, me.y);
     } catch (err) {
       console.error('[joinRoom]', err);
-      alert('เชื่อมต่อ Firebase ไม่ได้ — ตรวจสอบ config.js และ Database Rules');
+      alert(
+        'เชื่อมต่อ Firebase ไม่ได้\n\n' +
+        'รายละเอียด: ' + (err.code || '') + ' ' + (err.message || err) + '\n\n' +
+        'สาเหตุที่พบบ่อย: Database Rules ยังไม่ได้อัปเดต — ' +
+        'ไปที่ Firebase Console → Realtime Database → Rules แล้ว publish ' +
+        'ไฟล์ database.rules.json เวอร์ชันล่าสุด'
+      );
     }
   },
   (username) => isNameTaken(username),

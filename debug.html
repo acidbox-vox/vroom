@@ -77,12 +77,13 @@ async function runAll() {
     id: SESSION,
     username: 'debug_' + SESSION.slice(-4),
     avatarIndex: 0,
-    x: 640, y: 480,
+    x: 480, y: 384,
     idle: false,
     joinedAt: Date.now(),
-    // new appearance fields
-    gender: 'm', skinIdx: 1, hairIdx: 2, shirtIdx: 3,
-    hairStyle: 0, hatType: 1, itemType: 0, pantsIdx: 2,
+    // new appearance fields (must match current player.js schema)
+    gender: 'm', skinIdx: 1, hairIdx: 2, topIdx: 3, tieIdx: 0,
+    pantsIdx: 2, shoeIdx: 0, hairStyle: 0, eyeIdx: 0,
+    glasses: false, blush: false, accessory: 0,
   };
   log(`Writing: username="${record.username}" avatarIndex=${record.avatarIndex}`);
   try {
@@ -122,18 +123,57 @@ async function runAll() {
   // STEP 5: emitMove test
   log('--- STEP 5: emitMove (update x,y) ---');
   try {
-    await update(playerRef, { x: Math.round(500+Math.random()*200), y: 480 });
+    await update(playerRef, { x: Math.round(400+Math.random()*150), y: 384 });
     log('✅ update() (emitMove) succeeded', 'ok');
   } catch(e) {
     log('❌ update() failed: ' + e.code + ' — ' + e.message, 'err');
+  }
+
+  // STEP 6: systems link write (SYS-01..06)
+  log('--- STEP 6: Write systems/sys_01 (name+url) ---');
+  const sysRef = ref(db, 'rooms/main-room/systems/sys_01');
+  try {
+    await set(sysRef, { name: 'ทดสอบ', url: 'https://example.com', updatedAt: Date.now() });
+    log('✅ systems write OK', 'ok');
+  } catch(e) {
+    log('❌ systems write FAILED: ' + e.code + ' — ' + e.message, 'err');
+  }
+
+  // STEP 7: level2/users array write
+  log('--- STEP 7: Write level2/users (array) ---');
+  const lvl2Ref = ref(db, 'rooms/main-room/level2/users');
+  try {
+    await set(lvl2Ref, ['testuser1', 'testuser2']);
+    log('✅ level2/users write OK', 'ok');
+    const snap = await get(lvl2Ref);
+    log('   ↳ read back: ' + JSON.stringify(snap.exists() ? snap.val() : null), 'ok');
+  } catch(e) {
+    log('❌ level2/users write FAILED: ' + e.code + ' — ' + e.message, 'err');
+  }
+
+  // STEP 8: board/content write (central monitor)
+  log('--- STEP 8: Write board/content (central monitor) ---');
+  const boardRef = ref(db, 'rooms/main-room/board/content');
+  try {
+    await set(boardRef, { html: 'ทดสอบ ข้อความ\nบรรทัดใหม่', updatedAt: Date.now() });
+    log('✅ board/content write OK', 'ok');
+  } catch(e) {
+    log('❌ board/content write FAILED: ' + e.code + ' — ' + e.message, 'err');
   }
 
   // cleanup after 15s
   setTimeout(async () => {
     off(playersRef, 'value', handler);
     await remove(playerRef).catch(()=>{});
+    await remove(sysRef).catch(()=>{});
+    await remove(lvl2Ref).catch(()=>{});
+    await remove(boardRef).catch(()=>{});
     log('🧹 Cleaned up (15s elapsed)', 'warn');
   }, 15000);
+
+  log('--- สรุป ---', 'warn');
+  log('✅ = ผ่าน  ❌ = rules ยังไม่อัปเดต → ไปที่ Firebase Console → Realtime Database → Rules → ' +
+      'วาง database.rules.json ทั้งไฟล์ → Publish', 'warn');
 }
 
 function clearLog() { document.getElementById('log').innerHTML = ''; }
