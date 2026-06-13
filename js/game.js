@@ -60,10 +60,6 @@ function maskName(name) {
 }
 
 function _bootGame(user, spawnX, spawnY) {
-  const container = document.getElementById('gameContainer');
-  const W = container.offsetWidth  || window.innerWidth  - 284;
-  const H = container.offsetHeight || window.innerHeight - 48;
-
   let localPlayer   = null;
   let remotePlayers = {};
   let cursors       = null;
@@ -72,11 +68,16 @@ function _bootGame(user, spawnX, spawnY) {
 
   new Phaser.Game({
     type:            Phaser.AUTO,
-    width:           W,
-    height:          H,
+    width:           WORLD_W,
+    height:          WORLD_H,
     backgroundColor: '#0d1117',
     parent:          'gameContainer',
-    scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH },
+    scale: {
+      mode:       Phaser.Scale.FIT,
+      autoCenter: Phaser.Scale.CENTER_BOTH,
+      width:      WORLD_W,
+      height:     WORLD_H,
+    },
     banner: false,
     scene: { preload, create, update },
   });

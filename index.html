@@ -1,209 +1,140 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>คำนวณบำเหน็จบำนาญข้าราชการ</title>
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Virtual Room</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <!-- Phaser 3 -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 </head>
 <body>
 
-<div class="wrap">
-
-  <div class="brand">
-    <div class="brand-ring">
-      <div class="brand-emoji">🧮</div>
-    </div>
-    <h1>คำนวณบำเหน็จบำนาญข้าราชการ</h1>
-    <p class="brand-sub">ประเมินสิทธิประโยชน์เมื่อพ้นราชการ<br>บำเหน็จ · บำนาญ · บำเหน็จดำรงชีพ</p>
-    <div class="brand-pill">✦ เครื่องมือคำนวณ</div>
-  </div>
-
-  <!-- ข้อมูลพื้นฐาน -->
-  <div class="card">
-    <div class="card-lbl"><span class="clbl-dot ic-blue">📋</span>ข้อมูลพื้นฐาน</div>
-
-    <span class="fld">ประเภทสมาชิก</span>
-    <div class="sel-wrap">
-      <select id="memberType">
-        <option value="gpf">สมาชิก กบข.</option>
-        <option value="normal">ไม่เป็นสมาชิก กบข.</option>
-      </select>
-    </div>
-
-    <div class="date-row">
-      <div>
-        <span class="fld">วันบรรจุราชการ</span>
-        <input type="date" id="startDate">
+  <!-- ══════════════ LOGIN MODAL ══════════════ -->
+  <div id="loginOverlay" class="overlay active">
+    <div class="modal login-modal">
+      <div class="modal-logo">
+        <span class="logo-icon">🏛️</span>
+        <h1>Virtual Room</h1>
+        <p>Powered by Firebase</p>
       </div>
-      <div>
-        <span class="fld">วันออกจากราชการ</span>
-        <input type="date" id="endDate">
+
+      <div class="avatar-section">
+        <label class="section-label">เลือก Avatar</label>
+        <div class="avatar-grid" id="avatarGrid"></div>
       </div>
-    </div>
-  </div>
 
-  <!-- อายุราชการ -->
-  <div class="card">
-    <div class="card-lbl"><span class="clbl-dot ic-purple">📅</span>อายุราชการ</div>
-    <div class="result-display" id="serviceResult">0 ปี 0 เดือน 0 วัน</div>
-  </div>
-
-  <!-- ทวีคูณ -->
-  <div class="card">
-    <div class="card-lbl"><span class="clbl-dot ic-amber">⭐</span>วันทวีคูณ</div>
-    <div class="grid3">
-      <div>
-        <span class="fld">ปี</span>
-        <input type="number" id="bonusYear" placeholder="0">
+      <div class="input-group">
+        <label for="usernameInput">ชื่อผู้ใช้</label>
+        <input type="text" id="usernameInput"
+          placeholder="กรอกชื่อ 3–20 ตัวอักษร"
+          maxlength="20" autocomplete="off" />
+        <span class="input-hint" id="usernameHint"></span>
       </div>
-      <div>
-        <span class="fld">เดือน</span>
-        <input type="number" id="bonusMonth" placeholder="0">
-      </div>
-      <div>
-        <span class="fld">วัน</span>
-        <input type="number" id="bonusDay" placeholder="0">
-      </div>
-    </div>
-  </div>
 
-  <!-- รวมอายุราชการ -->
-  <div class="card">
-    <div class="card-lbl"><span class="clbl-dot ic-teal">🧮</span>รวมอายุราชการ</div>
-    <div class="result-display" id="totalServiceResult">0 ปี 0 เดือน 0 วัน</div>
-    <span class="fld" style="margin-top:14px;">เวลาราชการ (ทศนิยม)</span>
-    <div class="result-display small" id="serviceDecimal">0.00 ปี</div>
-  </div>
-
-  <!-- เงินเดือน -->
-  <div class="card">
-    <div class="card-lbl"><span class="clbl-dot ic-green">💰</span>เงินเดือน</div>
-    <span class="fld">เงินเดือนสุดท้าย</span>
-    <input type="number" id="lastSalary" placeholder="กรอกเงินเดือนสุดท้าย">
-  </div>
-
-  <!-- เงินเดือนเฉลี่ย -->
-  <div class="card">
-    <div class="card-lbl"><span class="clbl-dot ic-blue">📊</span>เงินเดือนเฉลี่ย 60 เดือน</div>
-
-    <div class="mode-toggle" id="avgModeToggle">
-      <button type="button" class="mode-btn active" data-mode="manual">กรอกค่าเฉลี่ยเอง</button>
-      <button type="button" class="mode-btn" data-mode="history">คำนวณจาก 60 เดือนสุดท้าย</button>
-    </div>
-
-    <!-- hidden real radios for JS compatibility -->
-    <input type="radio" name="avgMode" value="manual" checked style="display:none;">
-    <input type="radio" name="avgMode" value="history" style="display:none;">
-
-    <!-- กรอกเอง -->
-    <div id="manualSection">
-      <span class="fld">เงินเดือนเฉลี่ย 60 เดือน</span>
-      <input type="number" id="avgSalary" placeholder="กรอกเงินเดือนเฉลี่ย">
-    </div>
-
-    <!-- 10 งวด -->
-    <div id="historySection">
-      <button type="button" class="btn-ghost" id="generateBtn">
-        <span>⚡</span> สร้าง 60 เดือนสุดท้าย
+      <button id="loginBtn" class="btn-primary" disabled>
+        <span id="loginSpinner" class="spinner hidden"></span>
+        เข้าห้อง →
       </button>
-      <div id="salaryPeriods"></div>
+      <p id="loginError" class="error-msg"></p>
     </div>
   </div>
 
-  <!-- ค่าเฉลี่ย -->
-  <div class="card">
-    <div class="card-lbl"><span class="clbl-dot ic-purple">🎯</span>ค่าเฉลี่ยที่ใช้คำนวณ</div>
-    <div class="result-display accent" id="avgSalaryDisplay">0.00 บาท</div>
+  <!-- ══════════════ MAIN APP ══════════════ -->
+  <div id="app" class="hidden">
+
+    <header id="appHeader">
+      <div class="header-left">
+        <span class="header-logo">🏛️</span>
+        <span class="header-title">Virtual Room</span>
+      </div>
+      <div class="header-center">
+        <span class="status-dot"></span>
+        <span id="onlineCount">0</span>&nbsp;ออนไลน์
+      </div>
+      <div class="header-right">
+        <button id="minimapToggleBtn" class="icon-btn" title="Minimap">🗺️</button>
+        <button id="logoutBtn"        class="icon-btn" title="ออกห้อง">🚪</button>
+      </div>
+    </header>
+
+    <div id="mainLayout">
+
+      <!-- Game -->
+      <div id="gameWrapper">
+        <div id="gameContainer"></div>
+
+        <!-- Minimap -->
+        <div id="minimap" class="hidden">
+          <canvas id="minimapCanvas" width="160" height="120"></canvas>
+          <div id="minimapPlayer"></div>
+        </div>
+
+        <!-- Tooltip -->
+        <div id="tooltip" class="hidden">
+          <div id="tooltipIcon"></div>
+          <div id="tooltipName"></div>
+          <div id="tooltipDesc"></div>
+        </div>
+
+        <!-- Click ripple container -->
+        <div id="clickEffects"></div>
+      </div>
+
+      <!-- Sidebar -->
+      <aside id="sidebar">
+
+        <div class="panel" id="usersPanel">
+          <div class="panel-header">
+            <span>👥 ONLINE USERS</span>
+            <span class="badge" id="userCount">0</span>
+          </div>
+          <ul id="userList"></ul>
+        </div>
+
+        <div class="panel" id="chatPanel">
+          <div class="panel-header">
+            <span>💬 CHAT</span>
+          </div>
+          <div id="chatMessages"></div>
+          <div id="typingIndicator" class="hidden">
+            <span id="typingText"></span>
+          </div>
+          <div id="chatInputArea">
+            <input type="text" id="chatInput"
+              placeholder="พิมพ์ข้อความ..." maxlength="300" />
+            <button id="chatSendBtn">➤</button>
+          </div>
+          <div id="emojiBar">
+            <button class="emoji-btn" data-emoji="😊">😊</button>
+            <button class="emoji-btn" data-emoji="👍">👍</button>
+            <button class="emoji-btn" data-emoji="❤️">❤️</button>
+            <button class="emoji-btn" data-emoji="🎉">🎉</button>
+            <button class="emoji-btn" data-emoji="😂">😂</button>
+            <button class="emoji-btn" data-emoji="🔥">🔥</button>
+          </div>
+        </div>
+
+      </aside>
+    </div>
   </div>
 
-  <!-- ผลลัพธ์ -->
-  <div class="card result-card">
-    <div class="card-lbl"><span class="clbl-dot ic-green">✅</span>ผลการคำนวณ</div>
-
-    <div class="result-row">
-      <span>บำเหน็จ</span>
-      <span id="gratuityResult">0.00</span>
-    </div>
-    <div class="result-row">
-      <span>บำนาญ</span>
-      <span id="pensionResult">0.00</span>
-    </div>
-    <div class="result-row">
-      <span>บำเหน็จดำรงชีพ</span>
-      <span id="livingGrantResult">0.00</span>
+  <!-- ══════════════ CONTENT MODAL ══════════════ -->
+  <div id="contentOverlay" class="overlay hidden">
+    <div class="modal content-modal">
+      <div class="modal-header">
+        <span id="contentModalTitle"></span>
+        <button id="contentModalClose" class="close-btn">✕</button>
+      </div>
+      <div id="contentModalBody"></div>
     </div>
   </div>
 
-  <!-- ปุ่ม -->
-  <button class="btn-primary" id="printBtn">
-    <span>🖨️</span> พิมพ์รายงาน
-  </button>
-  <button class="btn-primary alt" id="pdfBtn">
-    <span>📄</span> Export PDF
-  </button>
-  <button class="btn-ghost danger" id="clearBtn">
-    <span>🗑️</span> ล้างข้อมูล
-  </button>
+  <!-- ══════════════ NOTIFICATIONS ══════════════ -->
+  <div id="notifications"></div>
 
-</div>
-
-<div class="footer">คำนวณบำเหน็จบำนาญข้าราชการ · ใช้เพื่อการอ้างอิงเบื้องต้น</div>
-
-<button id="dm-btn" title="สลับ Dark/Light Mode" aria-label="Toggle dark mode">🌙</button>
-
-<script src="js/dateCalculator.js"></script>
-<script src="js/salaryCalculator.js"></script>
-<script src="js/pensionCalculator.js"></script>
-<script src="js/app.js"></script>
-<script>
-// mode toggle buttons -> sync to hidden radios for compatibility with existing app.js
-(function(){
-  var toggle = document.getElementById('avgModeToggle');
-  var radios = document.querySelectorAll('input[name="avgMode"]');
-
-  function syncButtons(){
-    var checked = document.querySelector('input[name="avgMode"]:checked');
-    if(!checked) return;
-    toggle.querySelectorAll('.mode-btn').forEach(b=>{
-      b.classList.toggle('active', b.dataset.mode === checked.value);
-    });
-  }
-
-  toggle.addEventListener('click', function(e){
-    var btn = e.target.closest('.mode-btn');
-    if(!btn) return;
-    var mode = btn.dataset.mode;
-    radios.forEach(r=>{
-      if(r.value === mode){
-        r.checked = true;
-        r.dispatchEvent(new Event('change', {bubbles:true}));
-      }
-    });
-    syncButtons();
-  });
-
-  radios.forEach(r=>r.addEventListener('change', syncButtons));
-})();
-
-// dark mode
-(function(){
-  var html = document.documentElement;
-  var btn  = document.getElementById('dm-btn');
-  function applyTheme(dark){
-    if(dark){ html.classList.add('dark'); btn.textContent='☀️'; }
-    else     { html.classList.remove('dark'); btn.textContent='🌙'; }
-  }
-  var saved = localStorage.getItem('theme');
-  applyTheme(saved === 'dark');
-  btn.addEventListener('click', function(){
-    var isDark = html.classList.contains('dark');
-    localStorage.setItem('theme', isDark ? 'light' : 'dark');
-    applyTheme(!isDark);
-  });
-})();
-</script>
+  <!-- ES Modules -->
+  <script type="module" src="js/game.js"></script>
 
 </body>
 </html>
