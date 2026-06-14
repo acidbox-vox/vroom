@@ -4,7 +4,9 @@
  *
  * Layout (room interior: x:40–680, y:40–920):
  *   Central Monitor — top, wide (admin broadcasts + marquee ticker)
- *   6 System terminals — 2 columns (left/right) × 3 rows
+ *   6 System terminals — small glowing orbs, 2 columns (left/right) × 3 rows,
+ *     each with a 100×100 tap target (much smaller than the old 280×130
+ *     console, leaving large open floor for walking)
  *
  * actionType "system"      → SYS-01..06, editable name+link (admin always;
  *                             SYS-01..03 also editable by level2 user)
@@ -14,12 +16,11 @@
  * actionType "central_monitor" → admin broadcast screen + ticker
  */
 
-// Visual console scale used by _drawTronTerminal in game.js — kept here
-// as the single source of truth so collision boxes match the drawn size.
-export const TERMINAL_VIS_SCALE = 0.45;
+// Collision-box scale relative to the hitbox — orb terminals are small,
+// so the collidable area is slightly smaller than the tap target,
+// letting players brush past without bumping into invisible edges.
+export const TERMINAL_VIS_SCALE = 0.65;
 
-// Returns a smaller collision box centered within the given hitbox,
-// matching the visual console size (so players can walk closer/around it).
 function _collideBox(x, y, width, height, scale = TERMINAL_VIS_SCALE) {
   const w = width * scale, h = height * scale;
   return { x: x + (width - w) / 2, y: y + (height - h) / 2, width: w, height: h };
@@ -49,7 +50,7 @@ const _ROOM_OBJECTS_RAW = [
     name: "SYS-01 · กำลังพล",
     description: "ระบบบริหารกำลังพล",
     icon: "👥",
-    x: 56, y: 320, width: 280, height: 130,
+    x: 169, y: 370, width: 100, height: 100,
     actionType: "system",
     actionValue: "",
     editableByLevel2: true,
@@ -59,7 +60,7 @@ const _ROOM_OBJECTS_RAW = [
     name: "SYS-02 · งบประมาณ",
     description: "ระบบบริหารงบประมาณ",
     icon: "💰",
-    x: 56, y: 500, width: 280, height: 130,
+    x: 169, y: 570, width: 100, height: 100,
     actionType: "system",
     actionValue: "",
     editableByLevel2: true,
@@ -69,7 +70,7 @@ const _ROOM_OBJECTS_RAW = [
     name: "SYS-03 · สถิติ",
     description: "ระบบ Dashboard & Analytics",
     icon: "📊",
-    x: 56, y: 680, width: 280, height: 130,
+    x: 169, y: 770, width: 100, height: 100,
     actionType: "system",
     actionValue: "",
     editableByLevel2: true,
@@ -83,7 +84,7 @@ const _ROOM_OBJECTS_RAW = [
     name: "SYS-04 · แผนงาน",
     description: "ระบบแผนงานและโครงการ",
     icon: "📋",
-    x: 384, y: 320, width: 280, height: 130,
+    x: 451, y: 370, width: 100, height: 100,
     actionType: "system",
     actionValue: "",
     editableByLevel2: false,
@@ -93,7 +94,7 @@ const _ROOM_OBJECTS_RAW = [
     name: "SYS-05 · ติดตาม",
     description: "ระบบติดตามและประเมินผล",
     icon: "🎯",
-    x: 384, y: 500, width: 280, height: 130,
+    x: 451, y: 570, width: 100, height: 100,
     actionType: "system",
     actionValue: "",
     editableByLevel2: false,
@@ -103,7 +104,7 @@ const _ROOM_OBJECTS_RAW = [
     name: "SYS-06 · รายงาน",
     description: "ระบบรายงานและเอกสาร",
     icon: "📄",
-    x: 384, y: 680, width: 280, height: 130,
+    x: 451, y: 770, width: 100, height: 100,
     actionType: "system",
     actionValue: "",
     editableByLevel2: false,

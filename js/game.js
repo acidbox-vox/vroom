@@ -378,13 +378,8 @@ function _drawFloor(scene) {
   g.lineBetween(ccx-90, ccy, ccx+90, ccy);
   g.lineBetween(ccx, ccy-90, ccx, ccy+90);
 
-  // ── Terminal bank backdrops (left + right columns) ──────
-  g.fillStyle(0x081420, 0.8);
-  g.fillRect(48, 312, 296, 510);          // left column backdrop
-  g.fillRect(WORLD_W - 48 - 296, 312, 296, 510); // right column backdrop
-  g.lineStyle(1, 0x18d0ff, 0.25);
-  g.strokeRect(48, 312, 296, 510);
-  g.strokeRect(WORLD_W - 48 - 296, 312, 296, 510);
+  // ── Terminal bank backdrops removed — orbs float freely on the
+  //    open grid floor, giving more walkable space ─────────────
 
   // ── Floor light strip leading to central monitor ────────
   g.fillStyle(0x0a2a35, 0.5);
@@ -617,120 +612,100 @@ const OBJ_DRAW = {
     });
   },
 
-  /* ── System Terminals SYS-01..06 — Tron arcade cabinet ──── */
-  sys_01(g, scene, obj) { return _drawTronTerminal(g, scene, obj, 0x22e5ff, '01'); },
-  sys_02(g, scene, obj) { return _drawTronTerminal(g, scene, obj, 0x22e5ff, '02'); },
-  sys_03(g, scene, obj) { return _drawTronTerminal(g, scene, obj, 0x22e5ff, '03'); },
-  sys_04(g, scene, obj) { return _drawTronTerminal(g, scene, obj, 0xff8c1a, '04'); },
-  sys_05(g, scene, obj) { return _drawTronTerminal(g, scene, obj, 0xff8c1a, '05'); },
-  sys_06(g, scene, obj) { return _drawTronTerminal(g, scene, obj, 0xff8c1a, '06'); },
+  /* ── System Terminals SYS-01..06 — glowing orbs ─────────── */
+  sys_01(g, scene, obj) { return _drawOrbTerminal(g, scene, obj, 0x22e5ff, '01'); },
+  sys_02(g, scene, obj) { return _drawOrbTerminal(g, scene, obj, 0x22e5ff, '02'); },
+  sys_03(g, scene, obj) { return _drawOrbTerminal(g, scene, obj, 0x22e5ff, '03'); },
+  sys_04(g, scene, obj) { return _drawOrbTerminal(g, scene, obj, 0xff8c1a, '04'); },
+  sys_05(g, scene, obj) { return _drawOrbTerminal(g, scene, obj, 0xff8c1a, '05'); },
+  sys_06(g, scene, obj) { return _drawOrbTerminal(g, scene, obj, 0xff8c1a, '06'); },
 
   /* ── Default fallback ─────────────────────────────────────── */
   _default(g, scene, obj) {
-    return _drawTronTerminal(g, scene, obj, 0x22e5ff, '');
+    return _drawOrbTerminal(g, scene, obj, 0x22e5ff, '');
   },
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   TRON TERMINAL DRAW — glowing cyan/orange console pillar
+   ORB TERMINAL DRAW — small glowing crystal orb with blue floor aura
 ═══════════════════════════════════════════════════════════════ */
-function _drawTronTerminal(g, scene, obj, glow, code) {
-  // Visual console size ≈ 1/5 area of the hitbox (obj.width/height),
-  // centered within it — keeps tap target / collision / label unchanged.
-  const VIS_SCALE = 0.45;
-  const w = obj.width * VIS_SCALE, h = obj.height * VIS_SCALE;
-  const vx = obj.x + (obj.width - w) / 2;
-  const vy = obj.y + (obj.height - h) / 2;
-  const cx = vx + w/2, by = vy + h;
-  const glowHex = '#' + glow.toString(16).padStart(6,'0');
+const AURA_COLOR = 0x22e5ff; // blue/cyan aura under every orb
 
-  // floor base ring
-  g.lineStyle(1.5, glow, 0.5);
-  g.strokeEllipse(cx, by, w*0.7, 6);
-  g.fillStyle(glow, 0.08);
-  g.fillEllipse(cx, by, w*0.7, 6);
+function _drawOrbTerminal(g, scene, obj, glow, code) {
+  const cx = obj.x + obj.width / 2;
+  const r  = Math.min(obj.width, obj.height) * 0.22; // orb radius
+  const oy = obj.y + obj.height * 0.40;               // orb center y
+  const auraW = obj.width * 0.74;
+  const auraH = obj.height * 0.16;
+  const auraY = oy + r + auraH * 0.7;
 
-  // pedestal column
-  g.fillStyle(0x0a1018, 1);
-  g.fillRect(cx - 5, by - 8, 10, 8);
-  g.lineStyle(1, glow, 0.7);
-  g.strokeRect(cx - 5, by - 8, 10, 8);
+  const glowHex = '#' + glow.toString(16).padStart(6, '0');
 
-  // main console body
-  const bodyH = h - 8;
-  g.fillStyle(0x070d14, 1);
-  g.fillRoundedRect(vx, vy, w, bodyH, 3);
-  g.lineStyle(1.5, glow, 0.9);
-  g.strokeRoundedRect(vx, vy, w, bodyH, 3);
-  // inner panel line
-  g.lineStyle(1, glow, 0.25);
-  g.strokeRoundedRect(vx + 2, vy + 2, w - 4, bodyH - 4, 2);
+  // ── floor aura — concentric glow rings (blue) ───────────────
+  for (let i = 3; i >= 1; i--) {
+    g.fillStyle(AURA_COLOR, 0.05 * i);
+    g.fillEllipse(cx, auraY, auraW * (0.55 + 0.15 * i), auraH * (0.55 + 0.15 * i));
+  }
+  g.lineStyle(1.5, AURA_COLOR, 0.55);
+  g.strokeEllipse(cx, auraY, auraW, auraH);
 
-  // screen area
-  const sx = vx + 4, sy = vy + 10, sw = w - 8, sh = bodyH - 16;
-  g.fillStyle(0x020608, 1);
-  g.fillRect(sx, sy, sw, sh);
-  const flicker = 0.08 + 0.05 * Math.sin(scene.time.now / 500 + vx);
-  g.fillStyle(glow, flicker);
-  g.fillRect(sx, sy, sw, sh);
-  // screen scanlines
-  g.lineStyle(1, glow, 0.15);
-  for (let yy = sy + 2; yy < sy + sh; yy += 3) g.lineBetween(sx, yy, sx + sw, yy);
-  // screen border
-  g.lineStyle(1, glow, 0.6);
-  g.strokeRect(sx, sy, sw, sh);
+  // pulsing outer aura ring (animated)
+  const auraRing = scene.add.ellipse(cx, auraY, auraW * 1.15, auraH * 1.15, AURA_COLOR, 0.18).setDepth(1.5);
+  scene.tweens.add({
+    targets: auraRing,
+    scaleX: { from: 0.85, to: 1.15 }, scaleY: { from: 0.85, to: 1.15 },
+    alpha: { from: 0.28, to: 0.05 },
+    duration: 1600 + Math.random() * 400, repeat: -1, ease: 'Sine.easeInOut',
+  });
 
-  // top header strip
-  g.fillStyle(glow, 0.18);
-  g.fillRect(vx + 2, vy + 2, w - 4, 8);
-  g.lineStyle(1, glow, 0.7);
-  g.lineBetween(vx + 2, vy + 10, vx + w - 2, vy + 10);
+  // ── glowing orb (sphere) — floats above the aura ────────────
+  const orbContainer = scene.add.container(cx, oy).setDepth(3);
 
-  // code label (small, inside header strip)
+  // outer halo
+  const halo = scene.add.circle(0, 0, r * 1.7, glow, 0.10);
+  // sphere base (dark glass)
+  const base = scene.add.circle(0, 0, r, 0x0a1018, 0.92);
+  // colored core glow
+  const core = scene.add.circle(0, 0, r * 0.8, glow, 0.30);
+  // rim outline
+  const rim = scene.add.circle(0, 0, r, 0x000000, 0).setStrokeStyle(1.5, glow, 0.9);
+  // glass highlight (top-left)
+  const highlight = scene.add.circle(-r * 0.32, -r * 0.32, r * 0.32, 0xffffff, 0.35);
+  // bright center dot
+  const center = scene.add.circle(0, 0, Math.max(1.5, r * 0.12), glow, 1);
+
+  orbContainer.add([halo, base, core, rim, highlight, center]);
+
+  // gentle floating bob
+  scene.tweens.add({
+    targets: orbContainer, y: { from: oy - 3, to: oy + 3 },
+    duration: 1800 + Math.random() * 400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+    delay: Math.random() * 500,
+  });
+  // slow shimmer on halo
+  scene.tweens.add({
+    targets: halo, alpha: { from: 0.06, to: 0.16 },
+    duration: 1400 + Math.random() * 400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+  });
+
+  // ── small SYS code label above the orb ──────────────────────
   if (code) {
-    scene.add.text(cx, vy + 6, `${code}`, {
-      fontSize: '7px', fontFamily: 'Sarabun, sans-serif',
-      color: glowHex, letterSpacing: 1,
+    scene.add.text(cx, oy - r - 12, code, {
+      fontSize: '10px', fontFamily: 'Sarabun, sans-serif',
+      color: glowHex, letterSpacing: 2,
     }).setOrigin(0.5, 0.5).setDepth(3);
   }
 
-  // center icon glyph (data node)
-  g.lineStyle(1.5, glow, 0.8);
-  g.strokeCircle(cx, sy + sh/2, sh*0.32);
-  g.fillStyle(glow, 0.25);
-  g.fillCircle(cx, sy + sh/2, sh*0.32);
-  g.lineStyle(1, glow, 0.6);
-  g.lineBetween(cx - sw*0.28, sy + sh/2, cx + sw*0.28, sy + sh/2);
-  g.lineBetween(cx, sy + sh*0.2, cx, sy + sh*0.8);
-  g.fillStyle(glow, 1);
-  g.fillCircle(cx, sy + sh/2, 1.8);
+  // ── status pulse light (top-right of orb) ───────────────────
+  const pulse = scene.add.circle(cx + r * 0.85, oy - r * 0.85, 1.8, glow, 1).setDepth(4);
+  scene.tweens.add({ targets: pulse, alpha: { from: 1, to: 0.2 }, duration: 1000 + Math.random() * 500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
 
-  // base footer strip
-  g.fillStyle(glow, 0.15);
-  g.fillRect(vx + 2, vy + bodyH - 4, w - 4, 2.5);
-
-  // side accent lights
-  g.fillStyle(glow, 0.9);
-  g.fillCircle(vx + 4, vy + bodyH - 2.5, 1.3);
-  g.fillCircle(vx + w - 4, vy + bodyH - 2.5, 1.3);
-
-  // corner brackets on body
-  const b = 5;
-  g.lineStyle(1.5, glow, 1);
-  [[vx,vy,1,1],[vx+w,vy,-1,1],[vx,vy+bodyH,1,-1],[vx+w,vy+bodyH,-1,-1]].forEach(([cx2,cy2,sx2,sy2])=>{
-    g.lineBetween(cx2, cy2, cx2 + b*sx2, cy2);
-    g.lineBetween(cx2, cy2, cx2, cy2 + b*sy2);
-  });
-
-  // status pulse light (top right)
-  const pulse = scene.add.circle(vx + w - 6, vy + 5, 1.8, glow, 1).setDepth(4);
-  scene.tweens.add({ targets: pulse, alpha: { from: 1, to: 0.2 }, duration: 1000 + Math.random()*500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-
-  // vertical light beam rising from terminal (Tron signature)
-  const beam = scene.add.graphics().setDepth(0.6);
-  beam.fillStyle(glow, 0.10);
-  beam.fillRect(cx - 1, vy - 24, 2, bodyH + 24);
-  scene.tweens.add({ targets: beam, alpha: { from: 0.4, to: 1 }, duration: 1800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: Math.random()*800 });
-
-  return { vx, vy, vw: w, vh: bodyH, by: vy + bodyH };
+  // visual bounds for label/dot positioning in _drawObjects
+  return {
+    vx: cx - auraW / 2,
+    vy: oy - r - 14,
+    vw: auraW,
+    vh: (auraY + auraH / 2) - (oy - r - 14),
+    by: auraY + auraH / 2,
+  };
 }
