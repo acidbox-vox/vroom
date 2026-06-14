@@ -425,19 +425,23 @@ function _drawObjects(scene) {
   ROOM_OBJECTS.forEach(obj => {
     const g = scene.add.graphics().setDepth(2);
     const fn = OBJ_DRAW[obj.id] || OBJ_DRAW['_default'];
-    fn(g, scene, obj);
+    const vis = fn(g, scene, obj); // { vx, vy, vw, vh, by } for terminals, undefined for central monitor
 
-    // name label under object
-    const cx = obj.x + obj.width / 2;
-    obj._labelText = scene.add.text(cx, obj.y + obj.height + 6, obj.displayName || obj.name, {
+    // name label — placed under the visual console (or hitbox if no visual returned)
+    const labelCx = vis ? (vis.vx + vis.vw / 2) : (obj.x + obj.width / 2);
+    const labelY  = vis ? (vis.by + 6) : (obj.y + obj.height + 6);
+    const labelW  = vis ? (vis.vw + 60) : (obj.width + 40);
+    obj._labelText = scene.add.text(labelCx, labelY, obj.displayName || obj.name, {
       fontSize: '13px', fontFamily: 'Sarabun, sans-serif',
       color: '#cdd6f0', align: 'center',
       stroke: '#0a0e17', strokeThickness: 4,
-      wordWrap: { width: obj.width + 40 },
+      wordWrap: { width: labelW },
     }).setOrigin(0.5, 0).setDepth(3);
 
-    // pulsing active dot
-    const dot = scene.add.circle(obj.x + obj.width - 6, obj.y + 6, 3, 0x4ade80, 0.9).setDepth(4);
+    // pulsing active dot — top-right of visual console (or hitbox)
+    const dotX = vis ? (vis.vx + vis.vw - 4) : (obj.x + obj.width - 6);
+    const dotY = vis ? (vis.vy + 4) : (obj.y + 6);
+    const dot = scene.add.circle(dotX, dotY, 2.5, 0x4ade80, 0.9).setDepth(4);
     scene.tweens.add({ targets: dot, alpha: { from:0.9, to:0.15 }, duration:1200+Math.random()*600, yoyo:true, repeat:-1, ease:'Sine.easeInOut' });
   });
 }
@@ -614,16 +618,16 @@ const OBJ_DRAW = {
   },
 
   /* ── System Terminals SYS-01..06 — Tron arcade cabinet ──── */
-  sys_01(g, scene, obj) { _drawTronTerminal(g, scene, obj, 0x22e5ff, '01'); },
-  sys_02(g, scene, obj) { _drawTronTerminal(g, scene, obj, 0x22e5ff, '02'); },
-  sys_03(g, scene, obj) { _drawTronTerminal(g, scene, obj, 0x22e5ff, '03'); },
-  sys_04(g, scene, obj) { _drawTronTerminal(g, scene, obj, 0xff8c1a, '04'); },
-  sys_05(g, scene, obj) { _drawTronTerminal(g, scene, obj, 0xff8c1a, '05'); },
-  sys_06(g, scene, obj) { _drawTronTerminal(g, scene, obj, 0xff8c1a, '06'); },
+  sys_01(g, scene, obj) { return _drawTronTerminal(g, scene, obj, 0x22e5ff, '01'); },
+  sys_02(g, scene, obj) { return _drawTronTerminal(g, scene, obj, 0x22e5ff, '02'); },
+  sys_03(g, scene, obj) { return _drawTronTerminal(g, scene, obj, 0x22e5ff, '03'); },
+  sys_04(g, scene, obj) { return _drawTronTerminal(g, scene, obj, 0xff8c1a, '04'); },
+  sys_05(g, scene, obj) { return _drawTronTerminal(g, scene, obj, 0xff8c1a, '05'); },
+  sys_06(g, scene, obj) { return _drawTronTerminal(g, scene, obj, 0xff8c1a, '06'); },
 
   /* ── Default fallback ─────────────────────────────────────── */
   _default(g, scene, obj) {
-    _drawTronTerminal(g, scene, obj, 0x22e5ff, '');
+    return _drawTronTerminal(g, scene, obj, 0x22e5ff, '');
   },
 };
 
@@ -631,95 +635,102 @@ const OBJ_DRAW = {
    TRON TERMINAL DRAW — glowing cyan/orange console pillar
 ═══════════════════════════════════════════════════════════════ */
 function _drawTronTerminal(g, scene, obj, glow, code) {
-  const cx = obj.x + obj.width/2, by = obj.y + obj.height;
-  const w = obj.width, h = obj.height;
+  // Visual console size ≈ 1/5 area of the hitbox (obj.width/height),
+  // centered within it — keeps tap target / collision / label unchanged.
+  const VIS_SCALE = 0.45;
+  const w = obj.width * VIS_SCALE, h = obj.height * VIS_SCALE;
+  const vx = obj.x + (obj.width - w) / 2;
+  const vy = obj.y + (obj.height - h) / 2;
+  const cx = vx + w/2, by = vy + h;
   const glowHex = '#' + glow.toString(16).padStart(6,'0');
 
   // floor base ring
-  g.lineStyle(2, glow, 0.5);
-  g.strokeEllipse(cx, by, w*0.7, 10);
+  g.lineStyle(1.5, glow, 0.5);
+  g.strokeEllipse(cx, by, w*0.7, 6);
   g.fillStyle(glow, 0.08);
-  g.fillEllipse(cx, by, w*0.7, 10);
+  g.fillEllipse(cx, by, w*0.7, 6);
 
   // pedestal column
   g.fillStyle(0x0a1018, 1);
-  g.fillRect(cx - 8, by - 14, 16, 14);
-  g.lineStyle(1.5, glow, 0.7);
-  g.strokeRect(cx - 8, by - 14, 16, 14);
+  g.fillRect(cx - 5, by - 8, 10, 8);
+  g.lineStyle(1, glow, 0.7);
+  g.strokeRect(cx - 5, by - 8, 10, 8);
 
   // main console body
-  const bodyH = h - 18;
+  const bodyH = h - 8;
   g.fillStyle(0x070d14, 1);
-  g.fillRoundedRect(obj.x, obj.y, w, bodyH, 4);
-  g.lineStyle(2, glow, 0.9);
-  g.strokeRoundedRect(obj.x, obj.y, w, bodyH, 4);
+  g.fillRoundedRect(vx, vy, w, bodyH, 3);
+  g.lineStyle(1.5, glow, 0.9);
+  g.strokeRoundedRect(vx, vy, w, bodyH, 3);
   // inner panel line
   g.lineStyle(1, glow, 0.25);
-  g.strokeRoundedRect(obj.x + 3, obj.y + 3, w - 6, bodyH - 6, 3);
+  g.strokeRoundedRect(vx + 2, vy + 2, w - 4, bodyH - 4, 2);
 
   // screen area
-  const sx = obj.x + 6, sy = obj.y + 22, sw = w - 12, sh = bodyH - 34;
+  const sx = vx + 4, sy = vy + 10, sw = w - 8, sh = bodyH - 16;
   g.fillStyle(0x020608, 1);
   g.fillRect(sx, sy, sw, sh);
-  const flicker = 0.08 + 0.05 * Math.sin(scene.time.now / 500 + obj.x);
+  const flicker = 0.08 + 0.05 * Math.sin(scene.time.now / 500 + vx);
   g.fillStyle(glow, flicker);
   g.fillRect(sx, sy, sw, sh);
   // screen scanlines
   g.lineStyle(1, glow, 0.15);
-  for (let yy = sy + 3; yy < sy + sh; yy += 4) g.lineBetween(sx, yy, sx + sw, yy);
+  for (let yy = sy + 2; yy < sy + sh; yy += 3) g.lineBetween(sx, yy, sx + sw, yy);
   // screen border
   g.lineStyle(1, glow, 0.6);
   g.strokeRect(sx, sy, sw, sh);
 
   // top header strip
   g.fillStyle(glow, 0.18);
-  g.fillRect(obj.x + 3, obj.y + 3, w - 6, 16);
+  g.fillRect(vx + 2, vy + 2, w - 4, 8);
   g.lineStyle(1, glow, 0.7);
-  g.lineBetween(obj.x + 3, obj.y + 19, obj.x + w - 3, obj.y + 19);
+  g.lineBetween(vx + 2, vy + 10, vx + w - 2, vy + 10);
 
-  // code label
+  // code label (small, inside header strip)
   if (code) {
-    scene.add.text(cx, obj.y + 11, `SYS-${code}`, {
-      fontSize: '13px', fontFamily: 'Sarabun, sans-serif',
-      color: glowHex, letterSpacing: 2,
+    scene.add.text(cx, vy + 6, `${code}`, {
+      fontSize: '7px', fontFamily: 'Sarabun, sans-serif',
+      color: glowHex, letterSpacing: 1,
     }).setOrigin(0.5, 0.5).setDepth(3);
   }
 
   // center icon glyph (data node)
   g.lineStyle(1.5, glow, 0.8);
-  g.strokeCircle(cx, sy + sh/2, 12);
+  g.strokeCircle(cx, sy + sh/2, sh*0.32);
   g.fillStyle(glow, 0.25);
-  g.fillCircle(cx, sy + sh/2, 12);
+  g.fillCircle(cx, sy + sh/2, sh*0.32);
   g.lineStyle(1, glow, 0.6);
-  g.lineBetween(cx - 16, sy + sh/2, cx + 16, sy + sh/2);
-  g.lineBetween(cx, sy + sh/2 - 16, cx, sy + sh/2 + 16);
+  g.lineBetween(cx - sw*0.28, sy + sh/2, cx + sw*0.28, sy + sh/2);
+  g.lineBetween(cx, sy + sh*0.2, cx, sy + sh*0.8);
   g.fillStyle(glow, 1);
-  g.fillCircle(cx, sy + sh/2, 3);
+  g.fillCircle(cx, sy + sh/2, 1.8);
 
   // base footer strip
   g.fillStyle(glow, 0.15);
-  g.fillRect(obj.x + 3, obj.y + bodyH - 8, w - 6, 5);
+  g.fillRect(vx + 2, vy + bodyH - 4, w - 4, 2.5);
 
   // side accent lights
   g.fillStyle(glow, 0.9);
-  g.fillCircle(obj.x + 6, obj.y + bodyH - 5, 2);
-  g.fillCircle(obj.x + w - 6, obj.y + bodyH - 5, 2);
+  g.fillCircle(vx + 4, vy + bodyH - 2.5, 1.3);
+  g.fillCircle(vx + w - 4, vy + bodyH - 2.5, 1.3);
 
   // corner brackets on body
-  const b = 8;
-  g.lineStyle(2, glow, 1);
-  [[obj.x,obj.y,1,1],[obj.x+w,obj.y,-1,1],[obj.x,obj.y+bodyH,1,-1],[obj.x+w,obj.y+bodyH,-1,-1]].forEach(([cx2,cy2,sx2,sy2])=>{
+  const b = 5;
+  g.lineStyle(1.5, glow, 1);
+  [[vx,vy,1,1],[vx+w,vy,-1,1],[vx,vy+bodyH,1,-1],[vx+w,vy+bodyH,-1,-1]].forEach(([cx2,cy2,sx2,sy2])=>{
     g.lineBetween(cx2, cy2, cx2 + b*sx2, cy2);
     g.lineBetween(cx2, cy2, cx2, cy2 + b*sy2);
   });
 
   // status pulse light (top right)
-  const pulse = scene.add.circle(obj.x + w - 10, obj.y + 8, 2.5, glow, 1).setDepth(4);
+  const pulse = scene.add.circle(vx + w - 6, vy + 5, 1.8, glow, 1).setDepth(4);
   scene.tweens.add({ targets: pulse, alpha: { from: 1, to: 0.2 }, duration: 1000 + Math.random()*500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
 
   // vertical light beam rising from terminal (Tron signature)
   const beam = scene.add.graphics().setDepth(0.6);
   beam.fillStyle(glow, 0.10);
-  beam.fillRect(cx - 1, obj.y - 40, 2, bodyH + 40);
+  beam.fillRect(cx - 1, vy - 24, 2, bodyH + 24);
   scene.tweens.add({ targets: beam, alpha: { from: 0.4, to: 1 }, duration: 1800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: Math.random()*800 });
+
+  return { vx, vy, vw: w, vh: bodyH, by: vy + bodyH };
 }

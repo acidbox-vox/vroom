@@ -14,7 +14,18 @@
  * actionType "central_monitor" → admin broadcast screen + ticker
  */
 
-export const ROOM_OBJECTS = [
+// Visual console scale used by _drawTronTerminal in game.js — kept here
+// as the single source of truth so collision boxes match the drawn size.
+export const TERMINAL_VIS_SCALE = 0.45;
+
+// Returns a smaller collision box centered within the given hitbox,
+// matching the visual console size (so players can walk closer/around it).
+function _collideBox(x, y, width, height, scale = TERMINAL_VIS_SCALE) {
+  const w = width * scale, h = height * scale;
+  return { x: x + (width - w) / 2, y: y + (height - h) / 2, width: w, height: h };
+}
+
+const _ROOM_OBJECTS_RAW = [
 
   // ══════════════════════════════════════════════════════════════
   // CENTRAL MONITOR — admin broadcast display (top, wide)
@@ -100,6 +111,15 @@ export const ROOM_OBJECTS = [
   },
 
 ];
+
+// Attach a smaller collision box (matching the visual console size) to
+// every "system"-type object, so players can walk closer to/around them.
+export const ROOM_OBJECTS = _ROOM_OBJECTS_RAW.map(obj => {
+  if (obj.actionType === 'system') {
+    return { ...obj, collideBox: _collideBox(obj.x, obj.y, obj.width, obj.height) };
+  }
+  return obj;
+});
 
 export function getObjectById(id) {
   return ROOM_OBJECTS.find(o => o.id === id);

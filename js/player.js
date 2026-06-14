@@ -634,7 +634,8 @@ export class RemotePlayer {
 }
 
 function _resolveAABB(px,py,pr,rect){
-  const eL=rect.x-pr,eR=rect.x+rect.width+pr,eT=rect.y-pr,eB=rect.y+rect.height+pr;
+  const r = rect.collideBox || rect;
+  const eL=r.x-pr,eR=r.x+r.width+pr,eT=r.y-pr,eB=r.y+r.height+pr;
   if(px>eL&&px<eR&&py>eT&&py<eB){
     const dL=px-eL,dR=eR-px,dT=py-eT,dB=eB-py,m=Math.min(dL,dR,dT,dB);
     if(m===dL)px=eL; else if(m===dR)px=eR; else if(m===dT)py=eT; else py=eB;
