@@ -1,7 +1,6 @@
 /**
  * ui.js — Gender picker + randomize appearance
  */
-import { ROOM_OBJECTS } from './objects.js';
 import { saveBoardContent, loadBoardContent, saveSystemLink, listenSystemLinks, addLevel2Username, removeLevel2Username, listenLevel2Usernames, saveAnnouncement, loadAnnouncement } from './firebase.js';
 import { randomAppearance, drawAvatarToCanvas, resolveAp } from './player.js';
 
@@ -14,8 +13,8 @@ const loginOverlay=$('loginOverlay'),app=$('app'),avatarGrid=$('avatarGrid'),
   tooltipName=$('tooltipName'),tooltipDesc=$('tooltipDesc'),
   contentOverlay=$('contentOverlay'),contentModalTitle=$('contentModalTitle'),
   contentModalBody=$('contentModalBody'),contentModalClose=$('contentModalClose'),
-  notifications=$('notifications'),minimap=$('minimap'),
-  minimapToggleBtn=$('minimapToggleBtn');
+  notifications=$('notifications'),
+  onlineUsersBtn=$('onlineUsersBtn'),onlineUsersPopup=$('onlineUsersPopup');
 
 let currentAppearance = randomAppearance('m');
 let currentUser = null;
@@ -573,19 +572,17 @@ export function showNotification(msg, type='info') {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   MINIMAP
+   ONLINE USERS POPUP (replaces old minimap)
 ═══════════════════════════════════════════════════════════════ */
-minimapToggleBtn.addEventListener('click',()=>minimap.classList.toggle('hidden'));
-export function updateMinimap(px,py,wW,wH) {
-  const cv=$('minimapCanvas'), dot=$('minimapPlayer');
-  dot.style.left=(px/wW)*cv.width+'px'; dot.style.top=(py/wH)*cv.height+'px';
-}
-export function drawMinimapBg(wW,wH) {
-  const cv=$('minimapCanvas'), ctx=cv.getContext('2d');
-  ctx.fillStyle='#0d0f14'; ctx.fillRect(0,0,cv.width,cv.height);
-  const sx=cv.width/wW, sy=cv.height/wH;
-  ROOM_OBJECTS.forEach(o=>{ ctx.fillStyle='#2a2f42'; ctx.fillRect(o.x*sx,o.y*sy,o.width*sx,o.height*sy); });
-}
+onlineUsersBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  onlineUsersPopup.classList.toggle('active');
+});
+document.addEventListener('click', (e) => {
+  if (!onlineUsersPopup.classList.contains('active')) return;
+  if (onlineUsersPopup.contains(e.target) || onlineUsersBtn.contains(e.target)) return;
+  onlineUsersPopup.classList.remove('active');
+});
 
 /* ═══════════════════════════════════════════════════════════════
    CLICK EFFECT

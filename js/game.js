@@ -2,22 +2,24 @@
  * game.js — Entry point with click-to-move, chat bubbles, accurate online count
  */
 
-import { WORLD_W, WORLD_H, SYNC_RATE_MS } from './config.js';
+import { SYNC_RATE_MS } from './config.js';
 import {
   initLogin, updateUserList,
   showTooltip, moveTooltip, hideTooltip,
   openObjectModal, showNotification,
-  updateMinimap, drawMinimapBg,
   clickEffect, setCurrentUsername, setLevel2Usernames,
 } from './ui.js';
 import { initChat, appendSystemMsg } from './chat.js';
 import { LocalPlayer, RemotePlayer, PLAYER_SPEED, preloadSprites, setLevel2Checker } from './player.js';
-import { ROOM_OBJECTS } from './objects.js';
+import { getLayout } from './objects.js';
 import {
   SESSION_ID, joinRoom, isNameTaken,
   emitMove, listenPlayers, startHeartbeat, listenBoardContent,
   listenSystemLinks, listenLevel2Usernames, listenAnnouncement,
 } from './firebase.js';
+
+/* ── Active room layout (set once at boot, based on orientation) ── */
+let WORLD_W = 720, WORLD_H = 960, ROOM_OBJECTS = [];
 
 /* ── keep ref to localPlayer for chat bubble ────────────────── */
 let _localPlayerRef  = null;
@@ -28,14 +30,40 @@ export function getLocalPlayer()   { return _localPlayerRef; }
 export function getRemotePlayers() { return _remotePlayersRef; }
 
 /* ═══════════════════════════════════════════════════════════════
+   ORIENTATION → ROOM LAYOUT
+   Landscape (width > height): wide room. Portrait: tall room.
+   If the device is rotated into a different category after boot,
+   reload so Phaser/the room can rebuild with the matching layout.
+═══════════════════════════════════════════════════════════════ */
+function _detectIsLandscape() {
+  return window.innerWidth > window.innerHeight;
+}
+
+function _watchOrientationReload(bootIsLandscape) {
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (_detectIsLandscape() !== bootIsLandscape) {
+        location.reload();
+      }
+    }, 300);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════
    LOGIN FLOW
 ═══════════════════════════════════════════════════════════════ */
 initLogin(
   async (user) => {
     try {
-      const me = await joinRoom(user);
+      const isLandscape = _detectIsLandscape();
+      ({ WORLD_W, WORLD_H, ROOM_OBJECTS } = getLayout(isLandscape));
+
+      const me = await joinRoom(user, WORLD_W, WORLD_H);
       startHeartbeat();
       setCurrentUsername(user.username);
+      _watchOrientationReload(isLandscape);
       _bootGame(user, me.x, me.y);
     } catch (err) {
       console.error('[joinRoom]', err);
@@ -91,7 +119,6 @@ function _bootGame(user, spawnX, spawnY) {
     _sceneRef   = scene;
 
     _drawFloor(scene);
-    _drawBorder(scene);
     _drawObjects(scene);
 
     localPlayer   = new LocalPlayer(scene, spawnX, spawnY, user.username, user.appearance || {});
@@ -148,7 +175,6 @@ function _bootGame(user, spawnX, spawnY) {
     _bindSystemLinks();
     _bindLevel2Usernames();
     initChat(user.username, () => localPlayer, () => remotePlayers);
-    drawMinimapBg(WORLD_W, WORLD_H);
   }
 
   /* ── SYSTEM LINKS LIVE SYNC (SYS-01..06) ─────────────────── */
@@ -221,7 +247,6 @@ function _bootGame(user, spawnX, spawnY) {
     }
 
     Object.values(remotePlayers).forEach(rp => rp.update(delta));
-    updateMinimap(localPlayer.x, localPlayer.y, WORLD_W, WORLD_H);
 
     // ── Marquee ticker scroll (central monitor announcement) ──
     _updateTicker(this, delta);
@@ -366,29 +391,39 @@ function _drawFloor(scene) {
   });
 
   // ── Center floor emblem — large glowing ring (below monitor, above terminals) ──
-  const ccx = WORLD_W/2, ccy = 296;
-  for (let r = 70; r >= 30; r -= 14) {
-    g.lineStyle(1, 0x22e5ff, 0.10 + (70-r)/70*0.10);
+  // Position/size derive from the central monitor + first orb row so the
+  // emblem fits proportionally in both portrait and landscape layouts.
+  const monitor   = ROOM_OBJECTS.find(o => o._isCentral);
+  const orbs      = ROOM_OBJECTS.filter(o => o.actionType === 'system');
+  const monCx     = monitor.x + monitor.width / 2;
+  const monBottom = monitor.y + monitor.height;
+  const firstOrbY = Math.min(...orbs.map(o => o.y));
+  const ccx = monCx, ccy = monBottom + 40;
+  const gapAvail  = Math.max(20, firstOrbY - monBottom);
+  const maxR      = Math.min(70, Math.max(28, gapAvail * 1.15));
+  for (let r = maxR; r >= maxR * 0.42; r -= maxR * 0.2) {
+    g.lineStyle(1, 0x22e5ff, 0.10 + (maxR - r) / maxR * 0.10);
     g.strokeCircle(ccx, ccy, r);
   }
   g.lineStyle(2, 0x4af0ff, 0.35);
-  g.strokeCircle(ccx, ccy, 50);
+  g.strokeCircle(ccx, ccy, maxR * 0.72);
   // crosshair lines through emblem
   g.lineStyle(1, 0x18d0ff, 0.18);
-  g.lineBetween(ccx-90, ccy, ccx+90, ccy);
-  g.lineBetween(ccx, ccy-90, ccx, ccy+90);
+  g.lineBetween(ccx - maxR*1.3, ccy, ccx + maxR*1.3, ccy);
+  g.lineBetween(ccx, ccy - maxR*1.3, ccx, ccy + maxR*1.3);
 
   // ── Terminal bank backdrops removed — orbs float freely on the
   //    open grid floor, giving more walkable space ─────────────
 
   // ── Floor light strip leading to central monitor ────────
+  const stripH = Math.max(0, monBottom - RY - 4);
   g.fillStyle(0x0a2a35, 0.5);
-  g.fillRect(WORLD_W/2 - 4, RY+4, 8, 210);
+  g.fillRect(ccx - 4, RY+4, 8, stripH);
   g.fillStyle(0x22e5ff, 0.25);
-  g.fillRect(WORLD_W/2 - 1, RY+4, 2, 210);
+  g.fillRect(ccx - 1, RY+4, 2, stripH);
 
   // ── ROOM label ───────────────────────────────────────────
-  scene.add.text(WORLD_W/2, RY + 14, '◤ COMMAND CENTER ◢', {
+  scene.add.text(ccx, RY + 14, '◤ COMMAND CENTER ◢', {
     fontSize: '16px', fontFamily: 'Sarabun, sans-serif',
     color: '#4af0ff', stroke: '#000810', strokeThickness: 4,
     letterSpacing: 4,
@@ -409,7 +444,6 @@ function _drawFloor(scene) {
 
 // _drawTree removed
 
-function _drawBorder(_scene) { /* handled in _drawFloor */ }
 
 /* ═══════════════════════════════════════════════════════════════
    3D ISOMETRIC OBJECT RENDERER

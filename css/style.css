@@ -192,7 +192,7 @@ html, body {
 /* ══════════════════════════════════════════════════════════════
    APP LAYOUT
 ══════════════════════════════════════════════════════════════ */
-#app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+#app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; position: relative; }
 #app.hidden { display: none; }
 
 /* Header */
@@ -208,11 +208,16 @@ html, body {
 .header-left { display: flex; align-items: center; gap: 8px; }
 .header-logo { font-size: 20px; }
 .header-title { font-weight: 700; font-size: 15px; letter-spacing: .5px; }
-.header-center {
+.header-center { display: flex; align-items: center; }
+.online-pill {
   display: flex; align-items: center; gap: 6px;
   font-size: 12px; color: var(--text-muted);
   font-family: var(--font-mono);
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 999px; padding: 5px 12px;
+  cursor: pointer; transition: var(--transition);
 }
+.online-pill:hover { background: var(--bg-hover); border-color: var(--border-light); }
 .status-dot {
   width: 7px; height: 7px; border-radius: 50%;
   background: var(--accent);
@@ -274,11 +279,10 @@ html, body {
   padding: 1px 6px; border-radius: 10px;
 }
 
-/* Online Users */
-#usersPanel { flex-shrink: 0; max-height: 220px; }
+/* Online Users (rendered inside #onlineUsersPopup) */
 #userList {
   list-style: none; overflow-y: auto;
-  padding: 6px 0; flex: 1;
+  padding: 6px 0;
 }
 #userList li {
   display: flex; align-items: center; gap: 8px;
@@ -395,24 +399,36 @@ html, body {
 #tooltipDesc { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
 
 /* ══════════════════════════════════════════════════════════════
-   MINIMAP
+   ONLINE USERS POPUP (replaces old minimap)
 ══════════════════════════════════════════════════════════════ */
-#minimap {
-  position: absolute; bottom: 16px; left: 16px;
-  background: rgba(20,23,32,.9);
+#onlineUsersPopup {
+  position: absolute; top: var(--header-h); right: 16px;
+  width: min(320px, 90vw);
+  max-height: min(60vh, 420px);
+  background: rgba(20,23,32,.97);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
-  overflow: hidden; z-index: 40;
   box-shadow: var(--shadow);
-}
-#minimapCanvas { display: block; }
-#minimapPlayer {
-  position: absolute; width: 6px; height: 6px;
-  background: var(--accent); border-radius: 50%;
-  box-shadow: 0 0 6px var(--accent);
-  transform: translate(-50%, -50%);
+  z-index: 50;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  transform: translateY(-8px) scale(.97);
+  opacity: 0;
   pointer-events: none;
-  transition: left .1s, top .1s;
+  transition: transform .15s ease, opacity .15s ease;
+}
+#onlineUsersPopup.active {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+  pointer-events: auto;
+}
+#onlineUsersPopup .panel-header {
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+#onlineUsersPopup #userList {
+  overflow-y: auto;
+  flex: 1;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -499,53 +515,20 @@ html, body {
 ══════════════════════════════════════════════════════════════ */
 /* ═══════════════════════════════════════════════════════════════
    RESPONSIVE — orientation-based (mobile)
-   - PORTRAIT (tall): game on top, sidebar below split into
-     users (left, grid of small avatars+names) + chat (right)
-   - LANDSCAPE (wide, short): game left, sidebar right —
-     users on top (horizontal scroll row), chat below
+   Sidebar now contains ONLY the chat panel (online users moved to
+   the header popup). Chat is kept short — most people don't chat
+   much — so the room gets maximum screen space.
+   - PORTRAIT (tall): game on top, short chat strip below
+   - LANDSCAPE (wide, short): game left, narrow chat column right
 ═══════════════════════════════════════════════════════════════ */
 
 /* General mobile tweak (any orientation, smaller screens) */
 @media (max-width: 900px), (max-height: 500px) {
   :root { --header-h: 42px; }
   .header-title { display: none; }
-  #minimap { display: none; }
   .panel-header { padding: 4px 8px; font-size: 10px; }
-}
 
-/* Shared mobile sidebar reset */
-@media (max-width: 900px), (max-height: 500px) {
-  #sidebar { background: var(--bg-surface); }
-  .panel { border-bottom: none; }
-
-  /* User list becomes a small avatar+name grid */
-  #userList {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
-    gap: 2px;
-    padding: 4px;
-    overflow-y: auto;
-  }
-  #userList li {
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 1px;
-    padding: 2px 1px;
-    font-size: 9px;
-    text-align: center;
-    border-radius: var(--radius-sm);
-  }
-  .user-avatar-sm { width: 18px; height: 24px; }
-  .user-name {
-    white-space: normal; overflow: visible; text-overflow: clip;
-    line-height: 1.15; max-width: 100%;
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-  .user-status-dot { display: none; }
-
-  /* Chat panel: always reserve space for input */
+  /* Chat panel: compact, but input always visible */
   #chatMessages { padding: 4px 8px; gap: 4px; }
   .chat-text { font-size: 12px; }
   .chat-sender { font-size: 11px; }
@@ -557,30 +540,23 @@ html, body {
   #chatInput { font-size: 14px; padding: 7px 10px; } /* 14px avoids iOS zoom-on-focus */
 }
 
-/* ── PORTRAIT phones/tablets ─────────────────────────────────── */
+/* ── PORTRAIT phones/tablets — short chat strip below the room ── */
 @media (orientation: portrait) and (max-width: 900px) {
   #mainLayout { flex-direction: column; }
   #gameWrapper { flex: 1 1 auto; min-height: 0; }
   #sidebar {
     width: 100%;
-    flex: 0 0 26vh;
+    flex: 0 0 clamp(110px, 18vh, 160px);
     flex-direction: row;
     border-left: none; border-top: 1px solid var(--border);
     overflow: hidden;
   }
-  #usersPanel {
-    width: 30%; flex-shrink: 0;
-    max-height: none;
-    border-right: 1px solid var(--border); border-bottom: none;
-    display: flex; flex-direction: column;
-  }
-  #userList { flex: 1; grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); }
   #chatPanel { flex: 1; min-width: 0; border-bottom: none; }
 }
 
-/* ── LANDSCAPE phones ─────────────────────────────────────────── */
+/* ── LANDSCAPE phones — narrow chat column on the right ────────── */
 @media (orientation: landscape) and (max-height: 560px) {
-  :root { --sidebar-w: 210px; }
+  :root { --sidebar-w: 190px; }
   #mainLayout { flex-direction: row; }
   #gameWrapper { flex: 1 1 auto; min-width: 0; }
   #sidebar {
@@ -591,14 +567,6 @@ html, body {
     height: 100%; max-height: none;
     overflow: hidden;
   }
-  #usersPanel {
-    width: 100%; flex-shrink: 0;
-    flex: 0 0 34%;
-    max-height: none;
-    border-right: none; border-bottom: 1px solid var(--border);
-    display: flex; flex-direction: column;
-  }
-  #userList { flex: 1; grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); }
   #chatPanel { flex: 1; min-height: 0; border-bottom: none; }
 }
 
@@ -606,16 +574,12 @@ html, body {
 @media (orientation: portrait) and (max-width: 480px) {
   .login-modal { padding: 24px 20px 20px; }
   .avatar-grid { grid-template-columns: repeat(4, 1fr); }
-  #sidebar { flex: 0 0 28vh; }
-  #userList { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); }
+  #sidebar { flex: 0 0 clamp(100px, 16vh, 150px); }
 }
 
 /* ── Very small landscape (compact phones rotated) ───────────── */
 @media (orientation: landscape) and (max-height: 400px) {
-  :root { --sidebar-w: 170px; }
-  #userList { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); }
-  .user-avatar-sm { width: 18px; height: 24px; }
-  .user-name { font-size: 9px; }
+  :root { --sidebar-w: 160px; }
 }
 
 /* ── Spinner (login button) ─────────────────────────────────── */

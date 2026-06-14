@@ -9,7 +9,5 @@ export const FIREBASE_CONFIG = {
 };
 
 export const ROOM_ID         = "main-room";
-export const WORLD_W         = 720;
-export const WORLD_H         = 960;
 export const SYNC_RATE_MS    = 100;
 export const IDLE_TIMEOUT_MS = 15000;

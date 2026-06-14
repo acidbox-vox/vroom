@@ -22,8 +22,8 @@
             "glasses":     { ".validate": "newData.isBoolean()" },
             "blush":       { ".validate": "newData.isBoolean()" },
             "accessory":   { ".validate": "newData.isNumber()" },
-            "x":           { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 960" },
-            "y":           { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 768" },
+            "x":           { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1200" },
+            "y":           { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 960" },
             "idle":        { ".validate": "newData.isBoolean()" },
             "joinedAt":    { ".validate": "newData.isNumber()" },
             "id":          { ".validate": "newData.isString()" }

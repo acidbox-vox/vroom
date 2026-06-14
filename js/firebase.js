@@ -9,7 +9,7 @@
  * 5. listenPlayers: no filter that could silently drop records
  */
 
-import { FIREBASE_CONFIG, ROOM_ID, WORLD_W, WORLD_H } from './config.js';
+import { FIREBASE_CONFIG, ROOM_ID } from './config.js';
 
 import { initializeApp, getApps } from
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -40,10 +40,10 @@ const myT   = ()   => ref(db, `${roomPath}/typing/${SESSION_ID}`);
    — appearance fields stored flat (gender, skinIdx, ...)
    — username stored RAW (not HTML-escaped)
 ═══════════════════════════════════════════════════════════════ */
-export async function joinRoom(user) {
+export async function joinRoom(user, worldW, worldH) {
   const spread = 200;
-  const spawnX = Math.round(WORLD_W / 2 + (Math.random() - 0.5) * spread);
-  const spawnY = Math.round(WORLD_H / 2 + (Math.random() - 0.5) * spread);
+  const spawnX = Math.round(worldW / 2 + (Math.random() - 0.5) * spread);
+  const spawnY = Math.round(worldH / 2 + (Math.random() - 0.5) * spread);
 
   const ap = user.appearance || {};
 

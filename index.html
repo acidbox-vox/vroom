@@ -49,26 +49,30 @@
         <span class="header-title">Virtual Room</span>
       </div>
       <div class="header-center">
-        <span class="status-dot"></span>
-        <span id="onlineCount">0</span>&nbsp;ออนไลน์
+        <button id="onlineUsersBtn" class="online-pill" title="ดูผู้ใช้ออนไลน์">
+          <span class="status-dot"></span>
+          <span id="onlineCount">0</span>&nbsp;ออนไลน์
+        </button>
       </div>
       <div class="header-right">
-        <button id="minimapToggleBtn" class="icon-btn" title="Minimap">🗺️</button>
-        <button id="logoutBtn"        class="icon-btn" title="ออกห้อง">🚪</button>
+        <button id="logoutBtn" class="icon-btn" title="ออกห้อง">🚪</button>
       </div>
     </header>
+
+    <!-- Online Users popup (replaces old minimap) -->
+    <div id="onlineUsersPopup" class="hidden">
+      <div class="panel-header">
+        <span>👥 ONLINE USERS</span>
+        <span class="badge" id="userCount">0</span>
+      </div>
+      <ul id="userList"></ul>
+    </div>
 
     <div id="mainLayout">
 
       <!-- Game -->
       <div id="gameWrapper">
         <div id="gameContainer"></div>
-
-        <!-- Minimap -->
-        <div id="minimap" class="hidden">
-          <canvas id="minimapCanvas" width="160" height="120"></canvas>
-          <div id="minimapPlayer"></div>
-        </div>
 
         <!-- Tooltip -->
         <div id="tooltip" class="hidden">
@@ -81,16 +85,8 @@
         <div id="clickEffects"></div>
       </div>
 
-      <!-- Sidebar -->
+      <!-- Sidebar — chat only -->
       <aside id="sidebar">
-
-        <div class="panel" id="usersPanel">
-          <div class="panel-header">
-            <span>👥 ONLINE USERS</span>
-            <span class="badge" id="userCount">0</span>
-          </div>
-          <ul id="userList"></ul>
-        </div>
 
         <div class="panel" id="chatPanel">
           <div class="panel-header">
