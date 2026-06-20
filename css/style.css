@@ -193,6 +193,7 @@ html, body {
    APP LAYOUT
 ══════════════════════════════════════════════════════════════ */
 #app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; position: relative; }
+#jukeboxAudio { display: none; }
 #app.hidden { display: none; }
 
 /* Header */

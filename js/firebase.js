@@ -226,13 +226,21 @@ export function listenBoardContent(onChange) {
 /* ═══════════════════════════════════════════════════════════════
    SYSTEM LINKS — SYS-01..06, admin/level2 editable
 ═══════════════════════════════════════════════════════════════ */
-export async function saveSystemLink(sysId, url, name) {
+export async function saveSystemLink(sysId, url, name, color) {
   const payload = {
     url:       String(url || '').slice(0, 500),
     updatedAt: Date.now(),
   };
-  if (name !== undefined) payload.name = String(name || '').slice(0, 40);
-  await set(ref(db, `rooms/${ROOM_ID}/systems/${sysId}`), payload);
+  if (name  !== undefined) payload.name  = String(name  || '').slice(0, 40);
+  if (color !== undefined) payload.color = String(color || '').slice(0, 9);
+  await update(ref(db, `rooms/${ROOM_ID}/systems/${sysId}`), payload);
+}
+
+export async function saveOrbColor(sysId, color) {
+  await update(ref(db, `rooms/${ROOM_ID}/systems/${sysId}`), {
+    color:     String(color || '').slice(0, 9),
+    updatedAt: Date.now(),
+  });
 }
 
 export async function loadSystemLinks() {
@@ -296,6 +304,35 @@ export async function loadAnnouncement() {
 export function listenAnnouncement(onChange) {
   const r = ref(db, `rooms/${ROOM_ID}/announcement`);
   const h = (snap) => onChange(snap.exists() ? (snap.val()?.text ?? '') : '');
+  onValue(r, h);
+  return () => off(r, 'value', h);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   JUKEBOX — up to 10 track URLs, admin-only write.
+   Mute state is per-device/local-only (NOT synced) — each person's
+   mute button only affects their own playback, as requested.
+═══════════════════════════════════════════════════════════════ */
+export async function saveJukeboxTracks(tracks) {
+  // tracks: array of { url, title } — up to 10 entries
+  const clean = (tracks || [])
+    .filter(t => t && t.url)
+    .slice(0, 10)
+    .map(t => ({
+      url:   String(t.url).slice(0, 500),
+      title: String(t.title || '').slice(0, 80),
+    }));
+  await set(ref(db, `rooms/${ROOM_ID}/jukebox/tracks`), clean);
+}
+
+export async function loadJukeboxTracks() {
+  const snap = await get(ref(db, `rooms/${ROOM_ID}/jukebox/tracks`));
+  return snap.exists() ? snap.val() : [];
+}
+
+export function listenJukeboxTracks(onChange) {
+  const r = ref(db, `rooms/${ROOM_ID}/jukebox/tracks`);
+  const h = (snap) => onChange(snap.exists() ? snap.val() : []);
   onValue(r, h);
   return () => off(r, 'value', h);
 }

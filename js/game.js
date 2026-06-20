@@ -12,6 +12,7 @@ import {
 import { initChat, appendSystemMsg } from './chat.js';
 import { LocalPlayer, RemotePlayer, PLAYER_SPEED, preloadSprites, setLevel2Checker } from './player.js';
 import { getLayout } from './objects.js';
+import { initJukebox, toggleMute, isMuted, resyncState } from './jukebox.js';
 import {
   SESSION_ID, joinRoom, isNameTaken,
   emitMove, listenPlayers, startHeartbeat, listenBoardContent,
@@ -52,6 +53,43 @@ function _watchOrientationReload(bootIsLandscape) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   JUKEBOX UI — header mute button + in-world "now playing" sync
+═══════════════════════════════════════════════════════════════ */
+function _updateMuteIcon() {
+  const btn = document.getElementById('muteToggleBtn');
+  if (btn) btn.textContent = isMuted() ? '🔇' : '🔊';
+}
+
+function _initJukeboxUI() {
+  const audioEl = document.getElementById('jukeboxAudio');
+  const muteBtn = document.getElementById('muteToggleBtn');
+
+  initJukebox(audioEl, (track, muted) => {
+    _updateMuteIcon();
+    // update in-world jukebox "now playing" ticker + speaker icon, if drawn
+    const jukeboxObj = ROOM_OBJECTS.find(o => o.actionType === 'music_player');
+    if (jukeboxObj?._npTextRef) {
+      jukeboxObj._npTextRef.setText(track ? `▶ ${track.title || track.url}` : '— ไม่มีเพลง —');
+    }
+    if (_sceneRef?._jukeboxNowPlayingText) {
+      _sceneRef._jukeboxNowPlayingText.setText(track ? `▶ ${track.title || track.url}` : '— ไม่มีเพลง —');
+    }
+    if (jukeboxObj?._speakerIconRef) {
+      jukeboxObj._speakerIconRef.setText(muted ? '🔇' : '🔊');
+    }
+    if (jukeboxObj?._spinRef) {
+      jukeboxObj._spinRef.scene?.tweens?.killTweensOf(jukeboxObj._spinRef);
+      if (!muted && track) {
+        jukeboxObj._spinRef.scene.tweens.add({ targets: jukeboxObj._spinRef, angle: 360, duration: 6000, repeat: -1, ease: 'Linear' });
+      }
+    }
+  });
+
+  muteBtn?.addEventListener('click', () => { toggleMute(); });
+  _updateMuteIcon();
+}
+
+/* ═══════════════════════════════════════════════════════════════
    LOGIN FLOW
 ═══════════════════════════════════════════════════════════════ */
 initLogin(
@@ -64,6 +102,7 @@ initLogin(
       startHeartbeat();
       setCurrentUsername(user.username);
       _watchOrientationReload(isLandscape);
+      _initJukeboxUI();
       _bootGame(user, me.x, me.y);
     } catch (err) {
       console.error('[joinRoom]', err);
@@ -120,6 +159,7 @@ function _bootGame(user, spawnX, spawnY) {
 
     _drawFloor(scene);
     _drawObjects(scene);
+    resyncState();
 
     localPlayer   = new LocalPlayer(scene, spawnX, spawnY, user.username, user.appearance || {});
     _localPlayerRef  = localPlayer;
@@ -177,7 +217,7 @@ function _bootGame(user, spawnX, spawnY) {
     initChat(user.username, () => localPlayer, () => remotePlayers);
   }
 
-  /* ── SYSTEM LINKS LIVE SYNC (SYS-01..06) ─────────────────── */
+  /* ── SYSTEM LINKS LIVE SYNC (SYS-01..10) ─────────────────── */
   function _bindSystemLinks() {
     listenSystemLinks((data) => {
       ROOM_OBJECTS.forEach(obj => {
@@ -186,6 +226,11 @@ function _bootGame(user, spawnX, spawnY) {
           if (data[obj.id].name) {
             obj.displayName = data[obj.id].name;
             obj._labelText?.setText(obj.displayName);
+          }
+          const newColor = data[obj.id].color || null;
+          if (newColor !== (obj.orbColor || null)) {
+            obj.orbColor = newColor;
+            if (_sceneRef) _drawOneObject(_sceneRef, obj);
           }
         }
       });
@@ -451,28 +496,54 @@ function _drawFloor(scene) {
    isometric: top face / left face / right face
 ═══════════════════════════════════════════════════════════════ */
 function _drawObjects(scene) {
-  ROOM_OBJECTS.forEach(obj => {
-    const g = scene.add.graphics().setDepth(2);
-    const fn = OBJ_DRAW[obj.id] || OBJ_DRAW['_default'];
-    const vis = fn(g, scene, obj); // { vx, vy, vw, vh, by } for terminals, undefined for central monitor
+  ROOM_OBJECTS.forEach(obj => _drawOneObject(scene, obj));
+}
 
-    // name label — placed under the visual console (or hitbox if no visual returned)
-    const labelCx = vis ? (vis.vx + vis.vw / 2) : (obj.x + obj.width / 2);
-    const labelY  = vis ? (vis.by + 6) : (obj.y + obj.height + 6);
-    const labelW  = vis ? (vis.vw + 60) : (obj.width + 40);
-    obj._labelText = scene.add.text(labelCx, labelY, obj.displayName || obj.name, {
-      fontSize: '13px', fontFamily: 'Sarabun, sans-serif',
-      color: '#cdd6f0', align: 'center',
-      stroke: '#0a0e17', strokeThickness: 4,
-      wordWrap: { width: labelW },
-    }).setOrigin(0.5, 0).setDepth(3);
+// Draws (or redraws) a single ROOM_OBJECTS entry. Destroys any previous
+// visuals for this object first, so live updates (e.g. admin changing
+// an orb's color) can call this again without leaking Phaser objects
+// or duplicate tweens. Tracking works by diffing scene.children before
+// and after the draw call — simple and doesn't require touching every
+// individual OBJ_DRAW function.
+function _drawOneObject(scene, obj) {
+  _destroyObjectVisuals(scene, obj);
 
-    // pulsing active dot — top-right of visual console (or hitbox)
-    const dotX = vis ? (vis.vx + vis.vw - 4) : (obj.x + obj.width - 6);
-    const dotY = vis ? (vis.vy + 4) : (obj.y + 6);
-    const dot = scene.add.circle(dotX, dotY, 2.5, 0x4ade80, 0.9).setDepth(4);
-    scene.tweens.add({ targets: dot, alpha: { from:0.9, to:0.15 }, duration:1200+Math.random()*600, yoyo:true, repeat:-1, ease:'Sine.easeInOut' });
-  });
+  const before = new Set(scene.children.list);
+  const tweensBefore = new Set(scene.tweens.getTweens());
+
+  const g = scene.add.graphics().setDepth(2);
+  const fn = OBJ_DRAW[obj.id] || OBJ_DRAW['_default'];
+  const vis = fn(g, scene, obj);
+
+  const labelCx = vis ? (vis.vx + vis.vw / 2) : (obj.x + obj.width / 2);
+  const labelY  = vis ? (vis.by + 6) : (obj.y + obj.height + 6);
+  const labelW  = vis ? (vis.vw + 60) : (obj.width + 40);
+  obj._labelText = scene.add.text(labelCx, labelY, obj.displayName || obj.name, {
+    fontSize: '13px', fontFamily: 'Sarabun, sans-serif',
+    color: '#cdd6f0', align: 'center',
+    stroke: '#0a0e17', strokeThickness: 4,
+    wordWrap: { width: labelW },
+  }).setOrigin(0.5, 0).setDepth(3);
+
+  const dotX = vis ? (vis.vx + vis.vw - 4) : (obj.x + obj.width - 6);
+  const dotY = vis ? (vis.vy + 4) : (obj.y + 6);
+  const dot = scene.add.circle(dotX, dotY, 2.5, 0x4ade80, 0.9).setDepth(4);
+  scene.tweens.add({ targets: dot, alpha: { from:0.9, to:0.15 }, duration:1200+Math.random()*600, yoyo:true, repeat:-1, ease:'Sine.easeInOut' });
+
+  // diff: anything newly added during this draw belongs to this object
+  obj._visualDisplay = scene.children.list.filter(c => !before.has(c));
+  obj._visualTweens   = scene.tweens.getTweens().filter(t => !tweensBefore.has(t));
+}
+
+function _destroyObjectVisuals(scene, obj) {
+  (obj._visualTweens || []).forEach(tw => tw?.remove?.());
+  (obj._visualDisplay || []).forEach(d => d?.destroy?.());
+  obj._visualTweens = [];
+  obj._visualDisplay = [];
+  obj._labelText = null;
+  obj._spinRef = null;
+  obj._speakerIconRef = null;
+  obj._npTextRef = null;
 }
 
 /* ── iso helpers ────────────────────────────────────────────── */
@@ -646,19 +717,38 @@ const OBJ_DRAW = {
     });
   },
 
-  /* ── System Terminals SYS-01..06 — glowing orbs ─────────── */
-  sys_01(g, scene, obj) { return _drawOrbTerminal(g, scene, obj, 0x22e5ff, '01'); },
-  sys_02(g, scene, obj) { return _drawOrbTerminal(g, scene, obj, 0x22e5ff, '02'); },
-  sys_03(g, scene, obj) { return _drawOrbTerminal(g, scene, obj, 0x22e5ff, '03'); },
-  sys_04(g, scene, obj) { return _drawOrbTerminal(g, scene, obj, 0xff8c1a, '04'); },
-  sys_05(g, scene, obj) { return _drawOrbTerminal(g, scene, obj, 0xff8c1a, '05'); },
-  sys_06(g, scene, obj) { return _drawOrbTerminal(g, scene, obj, 0xff8c1a, '06'); },
+  /* ── System Terminals SYS-01..10 — glowing orbs ─────────── */
+  sys_01(g, scene, obj) { return _drawOrbTerminal(g, scene, obj, _orbColor(obj, 0x22e5ff), '01'); },
+  sys_02(g, scene, obj) { return _drawOrbTerminal(g, scene, obj, _orbColor(obj, 0x22e5ff), '02'); },
+  sys_03(g, scene, obj) { return _drawOrbTerminal(g, scene, obj, _orbColor(obj, 0x22e5ff), '03'); },
+  sys_04(g, scene, obj) { return _drawOrbTerminal(g, scene, obj, _orbColor(obj, 0xff8c1a), '04'); },
+  sys_05(g, scene, obj) { return _drawOrbTerminal(g, scene, obj, _orbColor(obj, 0xff8c1a), '05'); },
+  sys_06(g, scene, obj) { return _drawOrbTerminal(g, scene, obj, _orbColor(obj, 0xff8c1a), '06'); },
+  sys_07(g, scene, obj) { return _drawOrbTerminal(g, scene, obj, _orbColor(obj, 0xa23bff), '07'); },
+  sys_08(g, scene, obj) { return _drawOrbTerminal(g, scene, obj, _orbColor(obj, 0xa23bff), '08'); },
+  sys_09(g, scene, obj) { return _drawOrbTerminal(g, scene, obj, _orbColor(obj, 0x23ff8c), '09'); },
+  sys_10(g, scene, obj) { return _drawOrbTerminal(g, scene, obj, _orbColor(obj, 0x23ff8c), '10'); },
 
   /* ── Default fallback ─────────────────────────────────────── */
   _default(g, scene, obj) {
-    return _drawOrbTerminal(g, scene, obj, 0x22e5ff, '');
+    return _drawOrbTerminal(g, scene, obj, _orbColor(obj, 0x22e5ff), '');
+  },
+
+  /* ── Jukebox — Tron music player ──────────────────────────── */
+  music_player(g, scene, obj) {
+    return _drawJukebox(g, scene, obj);
   },
 };
+
+// Resolve the orb's color: admin-set obj.orbColor (hex string "#rrggbb")
+// takes priority, otherwise fall back to the given default.
+function _orbColor(obj, fallbackHex) {
+  if (obj.orbColor) {
+    const n = parseInt(obj.orbColor.replace('#', ''), 16);
+    if (!Number.isNaN(n)) return n;
+  }
+  return fallbackHex;
+}
 
 /* ═══════════════════════════════════════════════════════════════
    ORB TERMINAL DRAW — small glowing crystal orb with blue floor aura
@@ -742,4 +832,91 @@ function _drawOrbTerminal(g, scene, obj, glow, code) {
     vh: (auraY + auraH / 2) - (oy - r - 14),
     by: auraY + auraH / 2,
   };
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   JUKEBOX DRAW — Tron music player console
+   Small glowing cabinet with a spinning core (vinyl/equalizer look),
+   a mute/unmute indicator, and a thin "now playing" ticker line.
+═══════════════════════════════════════════════════════════════ */
+function _drawJukebox(g, scene, obj) {
+  const glow = 0xff2bd6; // magenta/pink accent — distinct from orb colors
+  const glowHex = '#' + glow.toString(16).padStart(6, '0');
+  const cx = obj.x + obj.width / 2;
+  const w = obj.width, h = obj.height;
+
+  // floor aura (same family as orb auras, slightly larger + magenta)
+  const auraW = w * 0.85, auraH = h * 0.20;
+  const auraY = obj.y + h - auraH * 0.6;
+  for (let i = 3; i >= 1; i--) {
+    g.fillStyle(glow, 0.05 * i);
+    g.fillEllipse(cx, auraY, auraW * (0.55 + 0.15 * i), auraH * (0.55 + 0.15 * i));
+  }
+  g.lineStyle(1.5, glow, 0.55);
+  g.strokeEllipse(cx, auraY, auraW, auraH);
+
+  // cabinet body
+  const bodyW = w * 0.78, bodyH = h * 0.62;
+  const bx = cx - bodyW / 2, by = obj.y + h * 0.06;
+  g.fillStyle(0x070710, 1);
+  g.fillRoundedRect(bx, by, bodyW, bodyH, 6);
+  g.lineStyle(2, glow, 0.9);
+  g.strokeRoundedRect(bx, by, bodyW, bodyH, 6);
+  g.lineStyle(1, glow, 0.25);
+  g.strokeRoundedRect(bx + 3, by + 3, bodyW - 6, bodyH - 6, 4);
+
+  // header strip
+  g.fillStyle(glow, 0.18);
+  g.fillRect(bx + 2, by + 2, bodyW - 4, 14);
+  g.lineStyle(1, glow, 0.7);
+  g.lineBetween(bx + 2, by + 16, bx + bodyW - 2, by + 16);
+  scene.add.text(cx, by + 9, '◤ JUKEBOX ◢', {
+    fontSize: '11px', fontFamily: 'Sarabun, sans-serif',
+    color: glowHex, letterSpacing: 2,
+  }).setOrigin(0.5, 0.5).setDepth(3);
+
+  // spinning core (equalizer rings, like a glowing record)
+  const coreY = by + 16 + (bodyH - 16) * 0.42;
+  const coreR = Math.min(bodyW, bodyH) * 0.22;
+  const ringContainer = scene.add.container(cx, coreY).setDepth(3);
+  for (let i = 0; i < 3; i++) {
+    const ring = scene.add.circle(0, 0, coreR * (0.45 + i * 0.28), 0x000000, 0)
+      .setStrokeStyle(1.2, glow, 0.5 - i * 0.1);
+    ringContainer.add(ring);
+  }
+  const coreDot = scene.add.circle(0, 0, coreR * 0.18, glow, 1);
+  ringContainer.add(coreDot);
+  scene.tweens.add({
+    targets: ringContainer, angle: 360, duration: 6000, repeat: -1, ease: 'Linear',
+  });
+  // store ref so game.js can pause/resume the spin on mute
+  obj._spinRef = ringContainer;
+
+  // mute/speaker icon badge (bottom-left of cabinet)
+  const badgeX = bx + 14, badgeY = by + bodyH - 12;
+  const speakerIcon = scene.add.text(badgeX, badgeY, '🔊', { fontSize: '12px' }).setOrigin(0.5).setDepth(4);
+  obj._speakerIconRef = speakerIcon;
+
+  // "now playing" ticker line (thin strip below header, above core)
+  const npY = by + 22;
+  const npText = scene.add.text(cx, npY, '— ไม่มีเพลง —', {
+    fontSize: '9px', fontFamily: 'Sarabun, sans-serif',
+    color: '#ffb3ea', align: 'center', wordWrap: { width: bodyW - 16 },
+  }).setOrigin(0.5, 0).setDepth(3);
+  scene._jukeboxNowPlayingText = npText;
+  obj._npTextRef = npText;
+
+  // corner brackets
+  const b = 6;
+  g.lineStyle(1.5, glow, 1);
+  [[bx,by,1,1],[bx+bodyW,by,-1,1],[bx,by+bodyH,1,-1],[bx+bodyW,by+bodyH,-1,-1]].forEach(([cx2,cy2,sx2,sy2])=>{
+    g.lineBetween(cx2, cy2, cx2 + b*sx2, cy2);
+    g.lineBetween(cx2, cy2, cx2, cy2 + b*sy2);
+  });
+
+  // pulsing status light
+  const pulse = scene.add.circle(bx + bodyW - 10, by + 9, 2, glow, 1).setDepth(4);
+  scene.tweens.add({ targets: pulse, alpha: { from: 1, to: 0.2 }, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+  return { vx: bx, vy: by, vw: bodyW, vh: bodyH, by: auraY + auraH / 2 };
 }

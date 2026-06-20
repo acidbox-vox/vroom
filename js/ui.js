@@ -1,8 +1,10 @@
 /**
  * ui.js — Gender picker + randomize appearance
  */
-import { saveBoardContent, loadBoardContent, saveSystemLink, listenSystemLinks, addLevel2Username, removeLevel2Username, listenLevel2Usernames, saveAnnouncement, loadAnnouncement } from './firebase.js';
+import { saveBoardContent, loadBoardContent, saveSystemLink, listenSystemLinks, addLevel2Username, removeLevel2Username, listenLevel2Usernames, saveAnnouncement, loadAnnouncement, saveJukeboxTracks, loadJukeboxTracks } from './firebase.js';
 import { randomAppearance, drawAvatarToCanvas, resolveAp } from './player.js';
+import { ORB_COLOR_PRESETS } from './objects.js';
+import { toggleMute, isMuted, getCurrentTrack, skipTrack } from './jukebox.js';
 
 const $ = id => document.getElementById(id);
 const loginOverlay=$('loginOverlay'),app=$('app'),avatarGrid=$('avatarGrid'),
@@ -236,9 +238,15 @@ export function openObjectModal(obj) {
     return;
   }
 
-  // ── ระบบ SYS-01..06: ชื่อ+link ที่แอดมิน/level2 แก้ไขได้ ──
+  // ── ระบบ SYS-01..10: ชื่อ+link+สี ที่แอดมิน/level2 แก้ไขได้ ──
   if (obj.actionType === 'system') {
     _openSystem(obj);
+    return;
+  }
+
+  // ── เครื่องเล่นเพลง (Jukebox): admin จัดการเพลย์ลิสต์, ทุกคนปิด/เปิดเสียงได้ ──
+  if (obj.actionType === 'music_player') {
+    _openJukebox(obj);
     return;
   }
 
@@ -345,6 +353,19 @@ async function _openSystem(obj) {
           font-family:Sarabun,sans-serif; outline:none;
         ">
       </div>
+      ${_isAdminUser() ? `
+      <div style="margin-bottom:10px">
+        <div style="font-size:11px;color:#9beeff;margin-bottom:6px">🎨 สีลูกแก้ว (แอดมินเท่านั้น)</div>
+        <div id="orbColorGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">
+          ${ORB_COLOR_PRESETS.map(c => `
+            <button class="orbColorBtn" data-color="${c.hex}" title="${escapeHtml(c.label)}" style="
+              width:100%; aspect-ratio:1; border-radius:50%; cursor:pointer;
+              background:${c.hex}; box-shadow:0 0 8px ${c.hex}99;
+              border:2px solid ${obj.orbColor === c.hex ? '#ffffff' : 'transparent'};
+              transition:.15s;
+            "></button>`).join('')}
+        </div>
+      </div>` : ''}
       <div style="display:flex;gap:8px;margin-top:8px">
         <button id="sysSaveBtn" style="
           flex:1; background:#0e3a45; border:1px solid #22e5ff; color:#22e5ff;
@@ -362,15 +383,28 @@ async function _openSystem(obj) {
       ${announceSection}
     `;
 
+    // track selected color locally (defaults to obj's current color, if any)
+    let _selectedOrbColor = obj.orbColor || null;
+    if (_isAdminUser()) {
+      document.querySelectorAll('.orbColorBtn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          _selectedOrbColor = btn.dataset.color;
+          document.querySelectorAll('.orbColorBtn').forEach(b => { b.style.border = '2px solid transparent'; });
+          btn.style.border = '2px solid #ffffff';
+        });
+      });
+    }
+
     $('sysSaveBtn').addEventListener('click', async () => {
       const btn = $('sysSaveBtn'); const msg = $('sysSaveMsg');
       const newUrl  = $('sysLinkInput').value.trim();
       const newName = $('sysNameInput').value.trim();
       btn.textContent = '⏳ กำลังบันทึก...'; btn.disabled = true;
       try {
-        await saveSystemLink(obj.id, newUrl, newName);
+        await saveSystemLink(obj.id, newUrl, newName, _isAdminUser() ? (_selectedOrbColor || '') : undefined);
         obj.actionValue = newUrl;
         obj.displayName = newName;
+        if (_isAdminUser() && _selectedOrbColor !== undefined) obj.orbColor = _selectedOrbColor || null;
         if (newName) {
           contentModalTitle.textContent = `${obj.icon} ${newName}`;
         }
@@ -477,6 +511,144 @@ async function _openSystem(obj) {
     contentModalBody.innerHTML = `<div style="color:#6b7fa3;padding:24px;text-align:center;font-size:13px">
       ⚙️ ระบบนี้ยังไม่ได้ตั้งค่า
     </div>`;
+  }
+}
+
+/* ── Jukebox modal: everyone can mute/skip; admin manages the
+       10-track playlist ──────────────────────────────────────── */
+async function _openJukebox(obj) {
+  contentModalBody.innerHTML = `<div style="color:#6b7fa3;padding:20px;text-align:center">⏳ กำลังโหลด...</div>`;
+  contentOverlay.classList.remove('hidden'); contentOverlay.classList.add('active');
+
+  const isAdmin = _isAdminUser();
+  let tracks = await loadJukeboxTracks().catch(() => []);
+  if (!Array.isArray(tracks)) tracks = Object.values(tracks || {});
+
+  const renderNowPlaying = () => {
+    const t = getCurrentTrack();
+    const muted = isMuted();
+    return `
+      <div style="text-align:center;padding:14px;background:#0d1117;border:1px solid #ff2bd680;border-radius:10px;margin-bottom:14px">
+        <div style="font-size:11px;color:#ff8ad6;letter-spacing:2px;margin-bottom:6px">◤ NOW PLAYING ◢</div>
+        <div id="jbNowPlayingText" style="font-size:13px;color:#ffe0f5;word-break:break-all">${t ? escapeHtml(t.title || t.url) : '— ไม่มีเพลง —'}</div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button id="jbMuteBtn" style="
+            flex:1; background:#1c2535; border:1px solid #3b82f6; color:#60a5fa;
+            padding:9px; border-radius:7px; cursor:pointer; font-size:13px;
+            font-family:Sarabun,sans-serif; font-weight:700;
+          ">${muted ? '🔇 เปิดเสียง' : '🔊 ปิดเสียง'}</button>
+          <button id="jbSkipBtn" style="
+            flex:1; background:#2a1c35; border:1px solid #a23bff; color:#c98bff;
+            padding:9px; border-radius:7px; cursor:pointer; font-size:13px;
+            font-family:Sarabun,sans-serif; font-weight:700;
+          ">⏭ เปลี่ยนเพลง</button>
+        </div>
+        <div style="font-size:10px;color:#4a5568;margin-top:8px">
+          การปิด/เปิดเสียงมีผลแค่เครื่องของคุณเท่านั้น ไม่กระทบคนอื่น
+        </div>
+      </div>
+    `;
+  };
+
+  const renderTrackRow = (t, i) => `
+    <div class="jbTrackRow" style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+      <span style="font-size:11px;color:#6b7fa3;width:18px;flex-shrink:0">${i + 1}.</span>
+      <input class="jbTitleInput" data-idx="${i}" type="text" placeholder="ชื่อเพลง (ไม่บังคับ)" value="${_ea(t?.title || '')}" maxlength="80" style="
+        width:34%; box-sizing:border-box; background:#0d1117; border:1px solid #2a3242;
+        border-radius:6px; padding:7px 8px; color:#e8ecf4; font-size:12px;
+        font-family:Sarabun,sans-serif; outline:none;
+      ">
+      <input class="jbUrlInput" data-idx="${i}" type="text" placeholder="https://.../song.mp3" value="${_ea(t?.url || '')}" maxlength="500" style="
+        flex:1; box-sizing:border-box; background:#0d1117; border:1px solid #2a3242;
+        border-radius:6px; padding:7px 8px; color:#e8ecf4; font-size:12px;
+        font-family:Sarabun,sans-serif; outline:none;
+      ">
+      <button class="jbRemoveBtn" data-idx="${i}" style="
+        background:#3a1414; border:1px solid #ff5555; color:#ff8888;
+        padding:6px 9px; border-radius:6px; cursor:pointer; font-size:11px;
+        font-family:Sarabun,sans-serif; flex-shrink:0;
+      ">✕</button>
+    </div>
+  `;
+
+  const adminSection = isAdmin ? `
+    <div style="margin-top:6px;padding-top:12px;border-top:1px solid #1e2535">
+      <div style="font-size:11px;color:#ff8ad6;margin-bottom:8px">🎼 เพลย์ลิสต์ (สูงสุด 10 เพลง, รองรับ .mp3 / .ogg เท่านั้น)</div>
+      <div id="jbTrackList">${tracks.map(renderTrackRow).join('')}</div>
+      <button id="jbAddTrackBtn" style="
+        width:100%; margin-top:6px; background:#1c2535; border:1px dashed #3b82f6; color:#60a5fa;
+        padding:8px; border-radius:7px; cursor:pointer; font-size:12px;
+        font-family:Sarabun,sans-serif;
+      ">+ เพิ่มเพลง</button>
+      <button id="jbSaveBtn" style="
+        width:100%; margin-top:10px; background:#3a0e2e; border:1px solid #ff2bd6; color:#ff8ad6;
+        padding:10px; border-radius:7px; cursor:pointer; font-size:13px;
+        font-family:Sarabun,sans-serif; font-weight:700;
+      ">💾 บันทึกเพลย์ลิสต์</button>
+      <div id="jbSaveMsg" style="margin-top:6px;font-size:12px;color:#4ade80;text-align:center;min-height:18px"></div>
+    </div>
+  ` : '';
+
+  contentModalBody.innerHTML = renderNowPlaying() + adminSection;
+
+  $('jbMuteBtn').addEventListener('click', () => {
+    toggleMute();
+    const muted = isMuted();
+    $('jbMuteBtn').textContent = muted ? '🔇 เปิดเสียง' : '🔊 ปิดเสียง';
+  });
+  $('jbSkipBtn').addEventListener('click', () => {
+    skipTrack();
+    setTimeout(() => {
+      const t = getCurrentTrack();
+      const el = $('jbNowPlayingText');
+      if (el) el.textContent = t ? (t.title || t.url) : '— ไม่มีเพลง —';
+    }, 150);
+  });
+
+  if (isAdmin) {
+    let localTracks = tracks.map(t => ({ title: t?.title || '', url: t?.url || '' }));
+
+    const _attachRowHandlers = () => {
+      document.querySelectorAll('.jbTitleInput').forEach(inp => {
+        inp.addEventListener('input', () => { localTracks[+inp.dataset.idx].title = inp.value; });
+      });
+      document.querySelectorAll('.jbUrlInput').forEach(inp => {
+        inp.addEventListener('input', () => { localTracks[+inp.dataset.idx].url = inp.value; });
+      });
+      document.querySelectorAll('.jbRemoveBtn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          localTracks.splice(+btn.dataset.idx, 1);
+          _renderList();
+        });
+      });
+    };
+
+    const _renderList = () => {
+      $('jbTrackList').innerHTML = localTracks.map(renderTrackRow).join('');
+      _attachRowHandlers();
+    };
+    _attachRowHandlers();
+
+    $('jbAddTrackBtn').addEventListener('click', () => {
+      if (localTracks.length >= 10) return;
+      localTracks.push({ title: '', url: '' });
+      _renderList();
+    });
+
+    $('jbSaveBtn').addEventListener('click', async () => {
+      const btn = $('jbSaveBtn'); const msg = $('jbSaveMsg');
+      btn.textContent = '⏳ กำลังบันทึก...'; btn.disabled = true;
+      try {
+        const cleaned = localTracks.filter(t => t.url.trim());
+        await saveJukeboxTracks(cleaned);
+        msg.textContent = '✅ บันทึกเพลย์ลิสต์แล้ว!';
+        btn.textContent = '💾 บันทึกเพลย์ลิสต์'; btn.disabled = false;
+      } catch (err) {
+        msg.style.color = '#ff5555';
+        msg.textContent = '❌ บันทึกไม่สำเร็จ: ' + (err.message || err);
+        btn.textContent = '💾 บันทึกเพลย์ลิสต์'; btn.disabled = false;
+      }
+    });
   }
 }
 

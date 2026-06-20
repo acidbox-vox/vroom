@@ -22,8 +22,8 @@
             "glasses":     { ".validate": "newData.isBoolean()" },
             "blush":       { ".validate": "newData.isBoolean()" },
             "accessory":   { ".validate": "newData.isNumber()" },
-            "x":           { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1200" },
-            "y":           { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 960" },
+            "x":           { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1400" },
+            "y":           { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1200" },
             "idle":        { ".validate": "newData.isBoolean()" },
             "joinedAt":    { ".validate": "newData.isNumber()" },
             "id":          { ".validate": "newData.isString()" }
@@ -63,6 +63,7 @@
           "$sysId": {
             "url":       { ".validate": "newData.isString() && newData.val().length <= 500" },
             "name":      { ".validate": "newData.isString() && newData.val().length <= 40" },
+            "color":     { ".validate": "newData.isString() && newData.val().length <= 9" },
             "updatedAt": { ".validate": "newData.isNumber()" }
           }
         },
@@ -79,6 +80,17 @@
           ".write": true,
           "text":      { ".validate": "newData.isString() && newData.val().length <= 300" },
           "updatedAt": { ".validate": "newData.isNumber()" }
+        },
+        "jukebox": {
+          ".read":  true,
+          ".write": true,
+          "tracks": {
+            ".validate": "newData.hasChildren() || !newData.exists()",
+            "$index": {
+              "url":   { ".validate": "newData.isString() && newData.val().length <= 500" },
+              "title": { ".validate": "newData.isString() && newData.val().length <= 80" }
+            }
+          }
         }
       }
     }
