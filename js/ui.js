@@ -10,7 +10,7 @@ const $ = id => document.getElementById(id);
 const loginOverlay=$('loginOverlay'),app=$('app'),avatarGrid=$('avatarGrid'),
   usernameInput=$('usernameInput'),usernameHint=$('usernameHint'),
   loginBtn=$('loginBtn'),loginSpinner=$('loginSpinner'),loginError=$('loginError'),
-  logoutBtn=$('logoutBtn'),userList=$('userList'),userCount=$('userCount'),
+  logoutBtn=$('logoutBtn'),userList=$('userList'),
   onlineCount=$('onlineCount'),tooltip=$('tooltip'),tooltipIcon=$('tooltipIcon'),
   tooltipName=$('tooltipName'),tooltipDesc=$('tooltipDesc'),
   contentOverlay=$('contentOverlay'),contentModalTitle=$('contentModalTitle'),
@@ -185,7 +185,7 @@ function clearSession()  { localStorage.removeItem(SK); }
 export function updateUserList(players, myId) {
   userList.innerHTML = '';
   const list = Object.values(players).filter(p => p?.username);
-  userCount.textContent = onlineCount.textContent = list.length;
+  onlineCount.textContent = list.length;
   list.sort((a,b) => (b.id===myId?1:0)-(a.id===myId?1:0));
   list.forEach(p => {
     const isMe = p.id===myId;
