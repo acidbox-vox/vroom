@@ -1,14 +1,13 @@
 /**
- * chat.js — Floating chat overlay
+ * chat.js — Persistent right-edge chat log overlay
  *
- * - Floating chat box (bottom-right) toggled by a FAB button — full
- *   history inside fades each message after 5 minutes (unchanged).
- * - A separate lightweight "floating bubble feed" sits over the game
- *   canvas: every new message pops in near the bottom-right and
- *   auto-fades after ~5 seconds, similar to the reference game's
- *   transient chat toast style. This shows even while the chat box
- *   is closed, so people don't miss messages.
- * - Unread dot on the FAB button while the chat box is closed.
+ * - Chat log sits in a permanent semi-transparent panel on the right
+ *   edge of the screen (always visible — no toggle). Newest message
+ *   appears at the TOP, older ones push down, each fades out and is
+ *   removed automatically ~5 minutes after it was sent.
+ * - There is no permanent input box. A small floating "compose" (✏️)
+ *   button reveals the input + emoji bar only while the person wants
+ *   to type; it auto-hides again after sending or on blur.
  */
 
 import { escapeHtml } from './ui.js';
@@ -26,20 +25,15 @@ const typingText      = document.getElementById('typingText');
 const emojiButtons    = document.querySelectorAll('.emoji-btn');
 
 const chatToggleBtn   = document.getElementById('chatToggleBtn');
-const floatingChatBox = document.getElementById('floatingChatBox');
-const chatCloseBtn    = document.getElementById('chatCloseBtn');
-const chatUnreadDot   = document.getElementById('chatUnreadDot');
-const floatingChatLog = document.getElementById('floatingChatLog');
+const chatComposeBar  = document.getElementById('chatComposeBar');
 
 let myUsername        = '';
 let renderedKeys      = new Set();
 let _getLocalPlayer   = null;
 let _getRemotePlayers = null;
-let _isFirstSnapshot  = true; // skip floating-bubble spam for chat history on join
-let _isBoxOpen        = false;
+let _isComposing      = false;
 
-const FADE_AFTER_MS   = 5 * 60 * 1000; // 5 นาที — full chat log entry
-const BUBBLE_FADE_MS  = 5000;          // 5 วินาที — floating toast bubble
+const FADE_AFTER_MS   = 5 * 60 * 1000; // 5 นาที — ข้อความในแถบขวาจางหายอัตโนมัติ
 
 export function initChat(username, getLocalPlayer, getRemotePlayers) {
   myUsername        = username;
@@ -49,6 +43,7 @@ export function initChat(username, getLocalPlayer, getRemotePlayers) {
   chatSendBtn.addEventListener('click', _send);
   chatInput.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _send(); }
+    if (e.key === 'Escape') { _closeCompose(); }
   });
   chatInput.addEventListener('input', () => {
     if (chatInput.value.trim()) startTyping(myUsername);
@@ -61,8 +56,14 @@ export function initChat(username, getLocalPlayer, getRemotePlayers) {
     });
   });
 
-  chatToggleBtn.addEventListener('click', _toggleBox);
-  chatCloseBtn.addEventListener('click', _closeBox);
+  chatToggleBtn.addEventListener('click', _toggleCompose);
+
+  // ปิดแถบพิมพ์เมื่อคลิกนอกพื้นที่ (แต่ไม่ปิดถ้าคลิกที่ปุ่ม emoji/ปุ่มเปิดเอง)
+  document.addEventListener('click', (e) => {
+    if (!_isComposing) return;
+    if (chatComposeBar.contains(e.target) || chatToggleBtn.contains(e.target)) return;
+    _closeCompose();
+  });
 
   listenChat(_onMessage);
   listenTyping(_onTyping);
@@ -71,17 +72,18 @@ export function initChat(username, getLocalPlayer, getRemotePlayers) {
   setInterval(_sweepOldMessages, 30_000);
 }
 
-function _toggleBox() { _isBoxOpen ? _closeBox() : _openBox(); }
-function _openBox() {
-  _isBoxOpen = true;
-  floatingChatBox.classList.add('open');
-  chatUnreadDot.classList.add('hidden');
-  _scrollToBottom();
+function _toggleCompose() { _isComposing ? _closeCompose() : _openCompose(); }
+function _openCompose() {
+  _isComposing = true;
+  chatComposeBar.classList.add('open');
+  chatToggleBtn.classList.add('active');
   chatInput.focus();
 }
-function _closeBox() {
-  _isBoxOpen = false;
-  floatingChatBox.classList.remove('open');
+function _closeCompose() {
+  _isComposing = false;
+  chatComposeBar.classList.remove('open');
+  chatToggleBtn.classList.remove('active');
+  stopTyping();
 }
 
 async function _send() {
@@ -89,7 +91,7 @@ async function _send() {
   if (!text) return;
   if (text.length > 300) { appendSystemMsg('⚠️ ข้อความยาวเกิน 300 ตัวอักษร'); return; }
   const result = await sendChatMessage(text, myUsername);
-  if (result.ok) { chatInput.value = ''; stopTyping(); }
+  if (result.ok) { chatInput.value = ''; stopTyping(); _closeCompose(); }
   else if (result.error) appendSystemMsg(result.error);
 }
 
@@ -112,19 +114,13 @@ function _onMessage(data) {
     </div>
     <div class="chat-text">${escapeHtml(data.text)}</div>`;
 
-  chatMessages.appendChild(div);
-  if (_isBoxOpen) _scrollToBottom();
+  // ข้อความใหม่ขึ้นบนสุดเสมอ (newest → oldest, top → bottom)
+  chatMessages.insertBefore(div, chatMessages.firstChild);
 
   // ตั้ง timer fade ให้ข้อความนี้โดยตรงตาม timestamp จริง
   const age     = Date.now() - msgTs;
   const delay   = Math.max(0, FADE_AFTER_MS - age);
   setTimeout(() => _fadeMsg(div), delay);
-
-  // floating toast bubble over the game canvas (skip on initial history load)
-  if (!_isFirstSnapshot) {
-    _showFloatingBubble(data.username, data.text, isMe);
-    if (!_isBoxOpen) chatUnreadDot.classList.remove('hidden');
-  }
 
   // chat bubble above head
   if (isMe) {
@@ -138,39 +134,18 @@ function _onMessage(data) {
   }
 }
 
-/* ── Floating toast bubble feed (auto-fade ~5s) ──────────────── */
-function _showFloatingBubble(username, text, isMe) {
-  const bubble = document.createElement('div');
-  bubble.className = 'floating-chat-bubble' + (isMe ? ' me' : '');
-  bubble.innerHTML = `<span class="fcb-name">${escapeHtml(username)}</span><span class="fcb-text">${escapeHtml(text)}</span>`;
-  floatingChatLog.appendChild(bubble);
-
-  // cap visible bubbles so the feed doesn't pile up forever
-  while (floatingChatLog.children.length > 5) {
-    floatingChatLog.removeChild(floatingChatLog.firstChild);
-  }
-
-  requestAnimationFrame(() => bubble.classList.add('show'));
-
-  setTimeout(() => {
-    bubble.classList.remove('show');
-    bubble.classList.add('fade-out');
-    setTimeout(() => bubble.remove(), 400);
-  }, BUBBLE_FADE_MS);
-}
-
 function _fadeMsg(el) {
   if (!el || !el.parentNode) return;
-  el.style.transition = 'opacity 2s ease, max-height 1s ease 1.5s';
+  el.style.transition = 'opacity 1.5s ease, max-height .8s ease 1s, margin .8s ease 1s, padding .8s ease 1s';
   el.style.opacity    = '0';
   el.style.maxHeight  = el.offsetHeight + 'px';
   // หลัง fade เสร็จ ค่อย collapse แล้ว remove
   setTimeout(() => {
-    el.style.maxHeight  = '0';
+    el.style.maxHeight    = '0';
     el.style.marginBottom = '0';
-    el.style.padding    = '0';
-    setTimeout(() => el.remove(), 1100);
-  }, 2100);
+    el.style.padding      = '0';
+    setTimeout(() => el.remove(), 850);
+  }, 1550);
 }
 
 // sweep ข้อความที่เก่าเกิน 5 นาที (รองรับกรณีโหลดประวัติเก่า)
@@ -201,18 +176,11 @@ export function appendSystemMsg(msg) {
   div.className   = 'chat-msg chat-msg-system';
   div.textContent = msg;
   div.dataset.ts  = Date.now();
-  chatMessages.appendChild(div);
-  if (_isBoxOpen) _scrollToBottom();
+  chatMessages.insertBefore(div, chatMessages.firstChild);
   setTimeout(() => _fadeMsg(div), FADE_AFTER_MS);
 }
 
-function _scrollToBottom() { chatMessages.scrollTop = chatMessages.scrollHeight; }
 function _formatTime(ts) {
   const d = new Date(ts);
   return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
-
-// After the initial Firebase snapshot of existing messages has been
-// processed, flip this off so only genuinely NEW messages trigger the
-// floating toast bubble (avoids a wall of toasts on every page load).
-setTimeout(() => { _isFirstSnapshot = false; }, 1200);

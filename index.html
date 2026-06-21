@@ -48,13 +48,12 @@
         <span class="header-logo">🏛️</span>
         <span class="header-title">Virtual Room</span>
       </div>
-      <div class="header-center">
-        <button id="onlineUsersBtn" class="online-pill" title="ดูผู้ใช้ออนไลน์">
-          <span class="status-dot"></span>
-          <span id="onlineCount">0</span>&nbsp;ออนไลน์
-        </button>
-      </div>
+      <div class="header-center"></div>
       <div class="header-right">
+        <span class="online-indicator" title="ผู้ใช้ออนไลน์">
+          <span class="status-dot"></span>
+          <span id="onlineCount">0</span>
+        </span>
         <button id="muteToggleBtn" class="icon-btn" title="เปิด/ปิดเสียงเพลง">🔊</button>
         <button id="logoutBtn" class="icon-btn" title="ออกห้อง">🚪</button>
       </div>
@@ -63,18 +62,9 @@
     <!-- Jukebox audio element (persists across modal open/close) -->
     <audio id="jukeboxAudio" preload="auto"></audio>
 
-    <!-- Online Users popup (replaces old minimap) -->
-    <div id="onlineUsersPopup" class="hidden">
-      <div class="panel-header">
-        <span>👥 ONLINE USERS</span>
-        <span class="badge" id="userCount">0</span>
-      </div>
-      <ul id="userList"></ul>
-    </div>
-
     <div id="mainLayout">
 
-      <!-- Game — now takes the FULL layout area, no sidebar -->
+      <!-- Game — fills the area between the two edge overlay panels -->
       <div id="gameWrapper">
         <div id="gameContainer"></div>
 
@@ -87,34 +77,33 @@
 
         <!-- Click ripple container -->
         <div id="clickEffects"></div>
-
-        <!-- Floating chat bubbles (auto-fading, like the reference game) -->
-        <div id="floatingChatLog"></div>
       </div>
+
+      <!-- Online users — persistent panel, left edge, names only -->
+      <aside id="onlineUsersPanel">
+        <div class="panel-header">
+          <span>👥 ONLINE</span>
+          <span class="badge" id="userCount">0</span>
+        </div>
+        <ul id="userList"></ul>
+      </aside>
+
+      <!-- Chat log — persistent panel, right edge, newest on top,
+           messages auto-fade after 5 minutes -->
+      <aside id="chatLogPanel">
+        <div id="chatMessages"></div>
+        <div id="typingIndicator" class="hidden">
+          <span id="typingText"></span>
+        </div>
+      </aside>
 
     </div>
 
-    <!-- Floating chat toggle button (bottom-right) -->
-    <button id="chatToggleBtn" class="chat-fab" title="แชท">
-      💬
-      <span id="chatUnreadDot" class="chat-unread-dot hidden"></span>
-    </button>
+    <!-- Floating "type" button — opens the chat input only while typing -->
+    <button id="chatToggleBtn" class="chat-fab" title="พิมพ์ข้อความ">✏️</button>
 
-    <!-- Floating chat box (collapsible, anchored bottom-right) -->
-    <div id="floatingChatBox">
-      <div class="panel-header">
-        <span>💬 CHAT</span>
-        <button id="chatCloseBtn" class="close-btn">✕</button>
-      </div>
-      <div id="chatMessages"></div>
-      <div id="typingIndicator" class="hidden">
-        <span id="typingText"></span>
-      </div>
-      <div id="chatInputArea">
-        <input type="text" id="chatInput"
-          placeholder="พิมพ์ข้อความ..." maxlength="300" />
-        <button id="chatSendBtn">➤</button>
-      </div>
+    <!-- Floating compose bar (input + emoji), shown only while composing -->
+    <div id="chatComposeBar">
       <div id="emojiBar">
         <button class="emoji-btn" data-emoji="😊">😊</button>
         <button class="emoji-btn" data-emoji="👍">👍</button>
@@ -122,6 +111,11 @@
         <button class="emoji-btn" data-emoji="🎉">🎉</button>
         <button class="emoji-btn" data-emoji="😂">😂</button>
         <button class="emoji-btn" data-emoji="🔥">🔥</button>
+      </div>
+      <div id="chatInputArea">
+        <input type="text" id="chatInput"
+          placeholder="พิมพ์ข้อความ..." maxlength="300" />
+        <button id="chatSendBtn">➤</button>
       </div>
     </div>
   </div>

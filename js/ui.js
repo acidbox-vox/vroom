@@ -15,8 +15,7 @@ const loginOverlay=$('loginOverlay'),app=$('app'),avatarGrid=$('avatarGrid'),
   tooltipName=$('tooltipName'),tooltipDesc=$('tooltipDesc'),
   contentOverlay=$('contentOverlay'),contentModalTitle=$('contentModalTitle'),
   contentModalBody=$('contentModalBody'),contentModalClose=$('contentModalClose'),
-  notifications=$('notifications'),
-  onlineUsersBtn=$('onlineUsersBtn'),onlineUsersPopup=$('onlineUsersPopup');
+  notifications=$('notifications');
 
 let currentAppearance = randomAppearance('m');
 let currentUser = null;
@@ -194,10 +193,6 @@ export function updateUserList(players, myId) {
     if (isMe) li.classList.add('user-me');
     if (p.idle) li.classList.add('user-idle');
 
-    const cv = document.createElement('canvas');
-    cv.width=24; cv.height=32; cv.className='user-avatar-sm';
-    drawAvatarToCanvas(cv, p);
-
     const ns = document.createElement('span'); ns.className='user-name';
     const isAdminUser = p.username === '0910655667';
     const isLevel2User = _level2Usernames.includes(p.username);
@@ -205,7 +200,7 @@ export function updateUserList(players, myId) {
       ? '👑 <span style="color:#ffd700;font-weight:700;text-shadow:0 0 8px #ffd700aa">ADMIN</span>' + (isMe?' <span class="me-tag">(ฉัน)</span>':'')
       : (isLevel2User ? '⭐ ' : '') + escapeHtml(p.username) + (isMe?' <span class="me-tag">(ฉัน)</span>':'');
     const dot = document.createElement('span'); dot.className='user-status-dot';
-    li.append(cv, ns, dot); userList.appendChild(li);
+    li.append(ns, dot); userList.appendChild(li);
   });
 }
 
@@ -749,18 +744,8 @@ export function showNotification(msg, type='info') {
   setTimeout(()=>{ el.classList.add('removing'); setTimeout(()=>el.remove(),350); },3500);
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   ONLINE USERS POPUP (replaces old minimap)
-═══════════════════════════════════════════════════════════════ */
-onlineUsersBtn.addEventListener('click', (e) => {
-  e.stopPropagation();
-  onlineUsersPopup.classList.toggle('active');
-});
-document.addEventListener('click', (e) => {
-  if (!onlineUsersPopup.classList.contains('active')) return;
-  if (onlineUsersPopup.contains(e.target) || onlineUsersBtn.contains(e.target)) return;
-  onlineUsersPopup.classList.remove('active');
-});
+/* Online users panel is now a persistent (always-visible) overlay —
+   no toggle/popup logic needed; see #onlineUsersPanel in CSS. */
 
 /* ═══════════════════════════════════════════════════════════════
    CLICK EFFECT
