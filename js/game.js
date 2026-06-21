@@ -15,7 +15,7 @@ import { getLayout } from './objects.js';
 import { initJukebox, toggleMute, isMuted, resyncState } from './jukebox.js';
 import {
   SESSION_ID, joinRoom, isNameTaken,
-  emitMove, listenPlayers, startHeartbeat, listenBoardContent,
+  emitMove, listenPlayers, startHeartbeat, listenBoardContent, listenBoardColor,
   listenSystemLinks, listenLevel2Usernames, listenAnnouncement,
 } from './firebase.js';
 
@@ -251,28 +251,55 @@ function _bootGame(user, spawnX, spawnY) {
 
   /* ── CENTRAL MONITOR LIVE SYNC ────────────────────────────── */
   function _bindCentralMonitor(scene) {
-    listenBoardContent((html) => {
+    let _lastAnnouncementText = '';
+    let _lastBoardHtml = null;
+
+    function _applyBoardText(html) {
       const txt = scene._centralMonitorText;
       if (!txt) return;
       if (!html) {
         txt.setText('ระบบพร้อมใช้งาน — ไม่มีข้อความ');
         return;
       }
-      // strip HTML tags for the in-world screen (plain text only)
       const plain = String(html).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
       txt.setText(plain.length > 0 ? plain : 'ระบบพร้อมใช้งาน — ไม่มีข้อความ');
+    }
+
+    listenBoardContent((html) => {
+      _lastBoardHtml = html;
+      _applyBoardText(html);
     });
 
-    listenAnnouncement((text) => {
+    function _applyTicker(text) {
       const t = scene._tickerText;
       if (!t) return;
       const clean = String(text || '').trim();
       scene._tickerMessage = clean;
       if (!clean) { t.setVisible(false); return; }
-      // pad with separators so the loop feels continuous
       t.setText(`${clean}　★　${clean}　★　`);
       t.x = scene._tickerStartX;
       t.setVisible(true);
+    }
+
+    listenBoardColor((color) => {
+      const monitorObj = ROOM_OBJECTS.find(o => o._isCentral);
+      if (!monitorObj) return;
+      const newColor = color || null;
+      if (newColor !== (monitorObj.monitorColor || null)) {
+        monitorObj.monitorColor = newColor;
+        if (_sceneRef) {
+          _drawOneObject(_sceneRef, monitorObj);
+          // redraw destroyed the old text objects — re-apply the last
+          // known board message + announcement so nothing flashes blank
+          _applyBoardText(_lastBoardHtml);
+          _applyTicker(_lastAnnouncementText);
+        }
+      }
+    });
+
+    listenAnnouncement((text) => {
+      _lastAnnouncementText = text;
+      _applyTicker(text);
     });
   }
 
@@ -621,15 +648,17 @@ const OBJ_DRAW = {
     const tickerH = 28;          // bottom marquee strip height
     const screenH = h - tickerH; // main message area height
     const screenCy = obj.y + screenH/2;
+    const glow = _orbColor(obj, 0x22e5ff, 'monitorColor');
+    const glowHex = '#' + glow.toString(16).padStart(6, '0');
 
     // outer glow frame
     g.fillStyle(0x06141c, 1);
     g.fillRoundedRect(obj.x - 6, obj.y - 6, w + 12, h + 12, 6);
-    g.lineStyle(2, 0x4af0ff, 0.9);
+    g.lineStyle(2, glow, 0.9);
     g.strokeRoundedRect(obj.x - 6, obj.y - 6, w + 12, h + 12, 6);
 
     // mounting struts down to floor
-    g.lineStyle(2, 0x18d0ff, 0.4);
+    g.lineStyle(2, glow, 0.4);
     g.lineBetween(obj.x + 14, obj.y + h + 6, obj.x + 14, obj.y + h + 30);
     g.lineBetween(obj.x + w - 14, obj.y + h + 6, obj.x + w - 14, obj.y + h + 30);
 
@@ -639,7 +668,7 @@ const OBJ_DRAW = {
 
     // animated scan glow
     const glowAlpha = 0.10 + 0.06 * Math.sin(scene.time.now / 600);
-    g.fillStyle(0x22e5ff, glowAlpha);
+    g.fillStyle(glow, glowAlpha);
     g.fillRect(obj.x, obj.y, w, screenH);
 
     // scanlines
@@ -649,12 +678,12 @@ const OBJ_DRAW = {
     // header bar
     g.fillStyle(0x0a2a35, 1);
     g.fillRect(obj.x, obj.y, w, 18);
-    g.lineStyle(1, 0x4af0ff, 0.6);
+    g.lineStyle(1, glow, 0.6);
     g.lineBetween(obj.x, obj.y + 18, obj.x + w, obj.y + 18);
 
     scene.add.text(cx, obj.y + 9, '◤ COMMAND BROADCAST ◢', {
       fontSize: '13px', fontFamily: 'Sarabun, sans-serif',
-      color: '#4af0ff', letterSpacing: 2,
+      color: glowHex, letterSpacing: 2,
     }).setOrigin(0.5, 0.5).setDepth(3);
 
     // message text — dynamic, updated externally
@@ -704,7 +733,7 @@ const OBJ_DRAW = {
 
     // corner brackets (around full panel)
     const b = 12;
-    g.lineStyle(2, 0x4af0ff, 1);
+    g.lineStyle(2, glow, 1);
     [[obj.x,obj.y,1,1],[obj.x+w,obj.y,-1,1],[obj.x,obj.y+h,1,-1],[obj.x+w,obj.y+h,-1,-1]].forEach(([cx2,cy2,sx,sy])=>{
       g.lineBetween(cx2, cy2, cx2 + b*sx, cy2);
       g.lineBetween(cx2, cy2, cx2, cy2 + b*sy);
@@ -742,9 +771,10 @@ const OBJ_DRAW = {
 
 // Resolve the orb's color: admin-set obj.orbColor (hex string "#rrggbb")
 // takes priority, otherwise fall back to the given default.
-function _orbColor(obj, fallbackHex) {
-  if (obj.orbColor) {
-    const n = parseInt(obj.orbColor.replace('#', ''), 16);
+function _orbColor(obj, fallbackHex, field = 'orbColor') {
+  const val = obj[field];
+  if (val) {
+    const n = parseInt(val.replace('#', ''), 16);
     if (!Number.isNaN(n)) return n;
   }
   return fallbackHex;

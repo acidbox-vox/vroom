@@ -54,6 +54,7 @@
           ".write": true,
           "content": {
             "html":      { ".validate": "newData.isString() && newData.val().length <= 2000" },
+            "color":     { ".validate": "newData.isString() && newData.val().length <= 9" },
             "updatedAt": { ".validate": "newData.isNumber()" }
           }
         },

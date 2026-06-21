@@ -203,11 +203,10 @@ export function listenTyping(onChange) {
 /* ═══════════════════════════════════════════════════════════════
    BOARD CONTENT — admin editable, stored in Firebase
 ═══════════════════════════════════════════════════════════════ */
-export async function saveBoardContent(html) {
-  await set(ref(db, `rooms/${ROOM_ID}/board/content`), {
-    html:      html,
-    updatedAt: Date.now(),
-  });
+export async function saveBoardContent(html, color) {
+  const payload = { html, updatedAt: Date.now() };
+  if (color !== undefined) payload.color = color;
+  await update(ref(db, `rooms/${ROOM_ID}/board/content`), payload);
 }
 
 export async function loadBoardContent() {
@@ -216,9 +215,29 @@ export async function loadBoardContent() {
   return snap.val()?.html ?? null;
 }
 
+export async function loadBoardColor() {
+  const snap = await get(ref(db, `rooms/${ROOM_ID}/board/content`));
+  if (!snap.exists()) return null;
+  return snap.val()?.color ?? null;
+}
+
 export function listenBoardContent(onChange) {
   const r = ref(db, `rooms/${ROOM_ID}/board/content`);
   const h = (snap) => onChange(snap.exists() ? (snap.val()?.html ?? null) : null);
+  onValue(r, h);
+  return () => off(r, 'value', h);
+}
+
+export async function saveBoardColor(color) {
+  await update(ref(db, `rooms/${ROOM_ID}/board/content`), {
+    color:     String(color || '').slice(0, 9),
+    updatedAt: Date.now(),
+  });
+}
+
+export function listenBoardColor(onChange) {
+  const r = ref(db, `rooms/${ROOM_ID}/board/content`);
+  const h = (snap) => onChange(snap.exists() ? (snap.val()?.color ?? null) : null);
   onValue(r, h);
   return () => off(r, 'value', h);
 }

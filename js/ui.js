@@ -1,7 +1,7 @@
 /**
  * ui.js — Gender picker + randomize appearance
  */
-import { saveBoardContent, loadBoardContent, saveSystemLink, listenSystemLinks, addLevel2Username, removeLevel2Username, listenLevel2Usernames, saveAnnouncement, loadAnnouncement, saveJukeboxTracks, loadJukeboxTracks } from './firebase.js';
+import { saveBoardContent, loadBoardContent, saveBoardColor, saveSystemLink, listenSystemLinks, addLevel2Username, removeLevel2Username, listenLevel2Usernames, saveAnnouncement, loadAnnouncement, saveJukeboxTracks, loadJukeboxTracks } from './firebase.js';
 import { randomAppearance, drawAvatarToCanvas, resolveAp } from './player.js';
 import { ORB_COLOR_PRESETS } from './objects.js';
 import { toggleMute, isMuted, getCurrentTrack, skipTrack } from './jukebox.js';
@@ -356,15 +356,7 @@ async function _openSystem(obj) {
       ${_isAdminUser() ? `
       <div style="margin-bottom:10px">
         <div style="font-size:11px;color:#9beeff;margin-bottom:6px">🎨 สีลูกแก้ว (แอดมินเท่านั้น)</div>
-        <div id="orbColorGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">
-          ${ORB_COLOR_PRESETS.map(c => `
-            <button class="orbColorBtn" data-color="${c.hex}" title="${escapeHtml(c.label)}" style="
-              width:100%; aspect-ratio:1; border-radius:50%; cursor:pointer;
-              background:${c.hex}; box-shadow:0 0 8px ${c.hex}99;
-              border:2px solid ${obj.orbColor === c.hex ? '#ffffff' : 'transparent'};
-              transition:.15s;
-            "></button>`).join('')}
-        </div>
+        ${_renderColorPicker('orbColorBtn', obj.orbColor)}
       </div>` : ''}
       <div style="display:flex;gap:8px;margin-top:8px">
         <button id="sysSaveBtn" style="
@@ -680,6 +672,10 @@ async function _openBoard(obj) {
           white-space:pre-wrap;
         ">${displayHtml}</div>
       </div>
+      <div style="margin-bottom:10px">
+        <div style="font-size:11px;color:#9beeff;margin-bottom:6px">🎨 สีจอ Command Monitor (แอดมินเท่านั้น)</div>
+        ${_renderColorPicker('monitorColorBtn', obj.monitorColor)}
+      </div>
       <div style="display:flex;gap:8px;margin-top:8px">
         <button id="boardSaveBtn" style="
           flex:1; background:#166534; border:1px solid #4ade80; color:#4ade80;
@@ -698,6 +694,15 @@ async function _openBoard(obj) {
       </div>
     `;
 
+    let _selectedMonitorColor = obj.monitorColor || null;
+    document.querySelectorAll('.monitorColorBtn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        _selectedMonitorColor = btn.dataset.color;
+        document.querySelectorAll('.monitorColorBtn').forEach(b => { b.style.border = '2px solid transparent'; });
+        btn.style.border = '2px solid #ffffff';
+      });
+    });
+
     $('boardSaveBtn').addEventListener('click', async () => {
       const btn = $('boardSaveBtn');
       const msg = $('boardSaveMsg');
@@ -705,10 +710,11 @@ async function _openBoard(obj) {
       btn.disabled = true;
       try {
         const html = $('boardEditor').innerHTML;
-        await saveBoardContent(html);
+        await saveBoardContent(html, _selectedMonitorColor || '');
         // Update in-memory object so others see it on next open (before refresh)
         obj.actionValue = html;
-        msg.textContent = '✅ บันทึกสำเร็จ! ทุกคนจะเห็นข้อความใหม่เมื่อเปิดกระดาน';
+        obj.monitorColor = _selectedMonitorColor || null;
+        msg.textContent = '✅ บันทึกสำเร็จ! ทุกคนจะเห็นข้อความและสีใหม่ทันที';
         btn.textContent = '💾 บันทึก';
         btn.disabled = false;
       } catch (err) {
@@ -772,3 +778,18 @@ export function escapeHtml(s) {
     .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
 }
 function _ea(s) { return String(s).replace(/"/g,'%22'); }
+
+/* ── Small color-swatch picker (reused by orb editor + central monitor) ── */
+function _renderColorPicker(btnClass, currentHex) {
+  return `
+    <div class="${btnClass}Grid" style="display:flex;flex-wrap:wrap;gap:5px">
+      ${ORB_COLOR_PRESETS.map(c => `
+        <button class="${btnClass}" data-color="${c.hex}" title="${escapeHtml(c.label)}" style="
+          width:20px; height:20px; flex-shrink:0; border-radius:50%; cursor:pointer; padding:0;
+          background:${c.hex}; box-shadow:0 0 5px ${c.hex}99;
+          border:2px solid ${currentHex === c.hex ? '#ffffff' : 'transparent'};
+          transition:.15s;
+        "></button>`).join('')}
+    </div>
+  `;
+}

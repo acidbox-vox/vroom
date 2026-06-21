@@ -1,5 +1,14 @@
 /**
- * chat.js — Chat + bubble + auto-fade messages every 5 min
+ * chat.js — Floating chat overlay
+ *
+ * - Floating chat box (bottom-right) toggled by a FAB button — full
+ *   history inside fades each message after 5 minutes (unchanged).
+ * - A separate lightweight "floating bubble feed" sits over the game
+ *   canvas: every new message pops in near the bottom-right and
+ *   auto-fades after ~5 seconds, similar to the reference game's
+ *   transient chat toast style. This shows even while the chat box
+ *   is closed, so people don't miss messages.
+ * - Unread dot on the FAB button while the chat box is closed.
  */
 
 import { escapeHtml } from './ui.js';
@@ -16,12 +25,21 @@ const typingIndicator = document.getElementById('typingIndicator');
 const typingText      = document.getElementById('typingText');
 const emojiButtons    = document.querySelectorAll('.emoji-btn');
 
+const chatToggleBtn   = document.getElementById('chatToggleBtn');
+const floatingChatBox = document.getElementById('floatingChatBox');
+const chatCloseBtn    = document.getElementById('chatCloseBtn');
+const chatUnreadDot   = document.getElementById('chatUnreadDot');
+const floatingChatLog = document.getElementById('floatingChatLog');
+
 let myUsername        = '';
 let renderedKeys      = new Set();
 let _getLocalPlayer   = null;
 let _getRemotePlayers = null;
+let _isFirstSnapshot  = true; // skip floating-bubble spam for chat history on join
+let _isBoxOpen        = false;
 
-const FADE_AFTER_MS = 5 * 60 * 1000; // 5 นาที
+const FADE_AFTER_MS   = 5 * 60 * 1000; // 5 นาที — full chat log entry
+const BUBBLE_FADE_MS  = 5000;          // 5 วินาที — floating toast bubble
 
 export function initChat(username, getLocalPlayer, getRemotePlayers) {
   myUsername        = username;
@@ -43,11 +61,27 @@ export function initChat(username, getLocalPlayer, getRemotePlayers) {
     });
   });
 
+  chatToggleBtn.addEventListener('click', _toggleBox);
+  chatCloseBtn.addEventListener('click', _closeBox);
+
   listenChat(_onMessage);
   listenTyping(_onTyping);
 
   // ตรวจทุก 30 วินาที หาข้อความที่อายุ > 5 นาทีแล้ว fade
   setInterval(_sweepOldMessages, 30_000);
+}
+
+function _toggleBox() { _isBoxOpen ? _closeBox() : _openBox(); }
+function _openBox() {
+  _isBoxOpen = true;
+  floatingChatBox.classList.add('open');
+  chatUnreadDot.classList.add('hidden');
+  _scrollToBottom();
+  chatInput.focus();
+}
+function _closeBox() {
+  _isBoxOpen = false;
+  floatingChatBox.classList.remove('open');
 }
 
 async function _send() {
@@ -79,12 +113,18 @@ function _onMessage(data) {
     <div class="chat-text">${escapeHtml(data.text)}</div>`;
 
   chatMessages.appendChild(div);
-  _scrollToBottom();
+  if (_isBoxOpen) _scrollToBottom();
 
   // ตั้ง timer fade ให้ข้อความนี้โดยตรงตาม timestamp จริง
   const age     = Date.now() - msgTs;
   const delay   = Math.max(0, FADE_AFTER_MS - age);
   setTimeout(() => _fadeMsg(div), delay);
+
+  // floating toast bubble over the game canvas (skip on initial history load)
+  if (!_isFirstSnapshot) {
+    _showFloatingBubble(data.username, data.text, isMe);
+    if (!_isBoxOpen) chatUnreadDot.classList.remove('hidden');
+  }
 
   // chat bubble above head
   if (isMe) {
@@ -96,6 +136,27 @@ function _onMessage(data) {
       player?.showChat(data.text);
     }
   }
+}
+
+/* ── Floating toast bubble feed (auto-fade ~5s) ──────────────── */
+function _showFloatingBubble(username, text, isMe) {
+  const bubble = document.createElement('div');
+  bubble.className = 'floating-chat-bubble' + (isMe ? ' me' : '');
+  bubble.innerHTML = `<span class="fcb-name">${escapeHtml(username)}</span><span class="fcb-text">${escapeHtml(text)}</span>`;
+  floatingChatLog.appendChild(bubble);
+
+  // cap visible bubbles so the feed doesn't pile up forever
+  while (floatingChatLog.children.length > 5) {
+    floatingChatLog.removeChild(floatingChatLog.firstChild);
+  }
+
+  requestAnimationFrame(() => bubble.classList.add('show'));
+
+  setTimeout(() => {
+    bubble.classList.remove('show');
+    bubble.classList.add('fade-out');
+    setTimeout(() => bubble.remove(), 400);
+  }, BUBBLE_FADE_MS);
 }
 
 function _fadeMsg(el) {
@@ -141,7 +202,7 @@ export function appendSystemMsg(msg) {
   div.textContent = msg;
   div.dataset.ts  = Date.now();
   chatMessages.appendChild(div);
-  _scrollToBottom();
+  if (_isBoxOpen) _scrollToBottom();
   setTimeout(() => _fadeMsg(div), FADE_AFTER_MS);
 }
 
@@ -150,3 +211,8 @@ function _formatTime(ts) {
   const d = new Date(ts);
   return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
+
+// After the initial Firebase snapshot of existing messages has been
+// processed, flip this off so only genuinely NEW messages trigger the
+// floating toast bubble (avoids a wall of toasts on every page load).
+setTimeout(() => { _isFirstSnapshot = false; }, 1200);
